@@ -1,0 +1,2148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Analyzer Pro v2.3</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Card Styles */
+        .card {
+            background: var(--card);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin-top: 0;
+        }
+
+        /* Upload Section */
+        .upload-area {
+            border: 2px dashed var(--primary);
+            padding: 40px;
+            text-align: center;
+            border-radius: 8px;
+            background: #eff6ff;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .upload-area:hover {
+            background: #dbeafe;
+        }
+
+        /* Grid Layout */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        /* Filter Mode Toggles */
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mode-toggle {
+            font-size: 0.8rem;
+            background: #f1f5f9;
+            padding: 2px 4px;
+            border-radius: 4px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .mode-toggle label {
+            cursor: pointer;
+            font-weight: normal;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        /* Multi Select Styles */
+        .multi-select-wrapper {
+            position: relative;
+        }
+
+        .multi-input-container {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px;
+            background: white;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+
+            /* Logic for "One Row" */
+            max-height: 42px;
+            overflow-y: hidden;
+            transition: max-height 0.2s ease-out;
+        }
+
+        .multi-input-container.expanded {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .tag {
+            background: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-right: 2px;
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+
+        .exclude-active .tag {
+            background: var(--danger);
+        }
+
+        .tag span {
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 4px;
+        }
+
+        .search-input {
+            border: none;
+            outline: none;
+            flex-grow: 1;
+            padding: 5px;
+            min-width: 120px;
+            background: transparent;
+        }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .dropdown-option {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .dropdown-option:hover {
+            background: #f1f5f9;
+        }
+
+        .dropdown-option.select-all {
+            color: var(--primary);
+            font-weight: 700;
+            border-bottom: 1px solid var(--border);
+            background-color: #f8fafc;
+        }
+
+        .dropdown-option.select-all:hover {
+            background-color: #e2e8f0;
+        }
+
+        /* NEW: Helper Buttons Container & Styles */
+        .helper-btns {
+            display: flex;
+            gap: 15px;
+            padding: 0 2px;
+            margin-top: 4px;
+        }
+
+        .expand-toggle-btn,
+        .clear-all-btn {
+            font-size: 0.75rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .expand-toggle-btn {
+            color: var(--primary);
+        }
+
+        .expand-toggle-btn:hover {
+            color: var(--primary-hover);
+        }
+
+        .clear-all-btn {
+            color: var(--danger);
+        }
+
+        .clear-all-btn:hover {
+            color: #dc2626;
+        }
+
+
+        /* Date Presets */
+        .date-presets {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .btn-preset {
+            background: #e2e8f0;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-preset:hover {
+            background: #cbd5e1;
+        }
+
+        .btn-preset.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+            background: #f8fafc;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: white;
+        }
+
+        /* Breakdown Controls */
+        .breakdown-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .toggle-group button {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .toggle-group button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Metrics & Tables */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .metric-val {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .metric-label {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        /* Calculator */
+        .calculator {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .calc-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .calc-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .calc-presets {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .btn-calc-preset {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            color: #166534;
+        }
+
+        .btn-calc-preset:hover {
+            background: #bbf7d0;
+        }
+
+        .btn-calc-preset.active {
+            background: #166534;
+            color: white;
+            border-color: #14532d;
+        }
+
+        .calc-details {
+            background: rgba(255, 255, 255, 0.6);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #374151;
+            margin-top: 5px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            border: 1px solid #bbf7d0;
+        }
+
+        .calc-stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calc-stat span:first-child {
+            font-weight: bold;
+            color: #059669;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #f1f5f9;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th:hover {
+            background: #e2e8f0;
+        }
+
+        th::after {
+            content: ' ↕';
+            opacity: 0.3;
+            font-size: 0.8em;
+        }
+
+        th.asc::after {
+            content: ' ⬆';
+            opacity: 1;
+        }
+
+        th.desc::after {
+            content: ' ⬇';
+            opacity: 1;
+        }
+
+        /* Load More Button */
+        .load-more-container {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+        }
+
+        .btn-load-more {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .btn-load-more:hover {
+            background: var(--primary-hover);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        /* Calendar Styles */
+        .calendar-section {
+            margin-bottom: 25px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .month-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .month-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border-color: var(--primary);
+        }
+
+        .month-name {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .month-total {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        /* Company List */
+        .month-company-list {
+            margin-top: auto;
+            text-align: left;
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .month-company-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .month-company-list::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .month-company-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+
+        .month-company-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px dashed #f1f5f9;
+        }
+
+        .month-company-item:last-child {
+            border-bottom: none;
+        }
+
+        .month-company-item span:first-child {
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 75%;
+        }
+
+        .month-company-item span:last-child {
+            font-weight: 600;
+            color: #334155;
+        }
+
+        /* Multi-File Upload Styles */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .upload-card {
+            border: 2px dashed #cbd5e1;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 150px;
+        }
+
+        .upload-card:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-card.uploaded {
+            border-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #64748b;
+        }
+
+        .uploaded .upload-icon {
+            color: var(--success);
+        }
+
+        .file-status {
+            font-size: 0.85rem;
+            margin-top: 5px;
+            color: #64748b;
+        }
+
+        /* B2B Section Styles */
+        .collapsible-header {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .collapsible-header:hover {
+            background: #e2e8f0;
+        }
+
+        .collapsible-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            margin-top: -10px;
+            margin-bottom: 20px;
+            background: white;
+        }
+
+        .collapsible-content.open {
+            display: block;
+        }
+
+        .b2b-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .b2b-sub-section {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .b2b-chilling {
+            border-top: 4px solid var(--success);
+            background: #f0fdf4;
+        }
+
+        .b2b-flagged {
+            border-top: 4px solid var(--danger);
+            background: #fef2f2;
+        }
+
+        .b2b-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .b2b-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .b2b-item:last-child {
+            border-bottom: none;
+        }
+
+        .warning-pill {
+            background: var(--danger);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>📊 Inventory & Sales Analyzer</h1>
+
+        <div class="card" id="uploadSection">
+            <h2>📂 Import Data Files</h2>
+            <p style="margin-bottom: 20px; color: #64748b;">Please upload the required files to begin analysis.</p>
+
+            <div class="upload-grid">
+                <!-- 1. Order History -->
+                <div class="upload-card" id="card-history" onclick="document.getElementById('input-history').click()">
+                    <div class="upload-icon">📜</div>
+                    <strong>Order History</strong>
+                    <div class="file-status" id="status-history">Not Uploaded</div>
+                    <input type="file" id="input-history" accept=".csv" style="display: none"
+                        onchange="handleFileSelect('history', event)">
+                </div>
+
+                <!-- 2. Title Kit -->
+                <div class="upload-card" id="card-kit" onclick="document.getElementById('input-kit').click()">
+                    <div class="upload-icon">📦</div>
+                    <strong>Title Kit Available</strong>
+                    <div class="file-status" id="status-kit">Not Uploaded</div>
+                    <input type="file" id="input-kit" accept=".csv" style="display: none"
+                        onchange="handleFileSelect('kit', event)">
+                </div>
+
+                <!-- 3. General Products -->
+                <div class="upload-card" id="card-general" onclick="document.getElementById('input-general').click()">
+                    <div class="upload-icon">🏷️</div>
+                    <strong>General Products</strong>
+                    <div class="file-status" id="status-general">Not Uploaded</div>
+                    <input type="file" id="input-general" accept=".csv" style="display: none"
+                        onchange="handleFileSelect('general', event)">
+                </div>
+
+                <!-- 4. B2B SKU List (Manual) -->
+                <div class="upload-card" id="card-b2b" onclick="document.getElementById('input-b2b').click()">
+                    <div class="upload-icon">📋</div>
+                    <strong>B2B SKU List</strong>
+                    <div class="file-status" id="status-b2b">Not Uploaded</div>
+                    <input type="file" id="input-b2b" accept=".csv" style="display: none"
+                        onchange="handleFileSelect('b2b', event)">
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="processBtn" class="btn-load-more" style="opacity: 0.5; cursor: not-allowed;" disabled
+                    onclick="processFiles()">
+                    🚀 Process Files
+                </button>
+            </div>
+            <div id="errorMsg" class="error" style="text-align: center;"></div>
+        </div>
+
+        <div id="appInterface" class="hidden">
+
+            <!-- B2B Section -->
+            <div class="card"
+                style="padding: 0; overflow: hidden; border: none; background: transparent; box-shadow: none;">
+                <div class="collapsible-header" onclick="toggleB2B()">
+                    <div>
+                        <h3 style="margin: 0; color: var(--primary);">🏭 B2B SKU Status</h3>
+                        <span style="font-size: 0.8rem; color: #64748b;" id="b2b-summary-text">Loading...</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="collapsible-content" id="b2bContent">
+
+                    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                        <label>Forecasting Horizon:</label>
+                        <select id="forecastMonths" onchange="runB2BAnalysis()"
+                            style="padding: 5px; border-radius: 4px; border: 1px solid var(--border);">
+                            <option value="1">1 Month</option>
+                            <option value="2">2 Months</option>
+                            <option value="3">3 Months</option>
+                            <option value="4">4 Months</option>
+                            <option value="5">5 Months</option>
+                            <option value="6">6 Months</option>
+                        </select>
+                        <span style="font-size: 0.8rem; color: #64748b;">(Warn if stock runs out within this
+                            time)</span>
+                    </div>
+
+                    <div class="b2b-grid">
+                        <!-- Flagged SKUs -->
+                        <div class="b2b-sub-section b2b-flagged">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4 style="margin: 0; color: #b91c1c;">🚩 Flagged SKUs <span id="flaggedCount"
+                                        style="color: #64748b; font-size: 0.8em; font-weight: normal;"></span></h4>
+                                <button onclick="exportFlaggedCSV()" class="btn-sm"
+                                    style="background-color: #fff; border: 1px solid #ccc; color: #333;">Export
+                                    CSV</button>
+                            </div>
+                            <input type="text" id="flaggedSearch" placeholder="Search Flagged SKUs (Press Enter)..."
+                                onkeydown="if(event.key === 'Enter') filterFlaggedList()"
+                                style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; font-size: 0.9rem;">
+                            <div class="b2b-list" id="flaggedList">
+                                <!-- Items go here -->
+                            </div>
+                        </div>
+
+                        <!-- Chilling SKUs -->
+                        <div class="b2b-sub-section b2b-chilling">
+                            <h4 style="margin-top: 0; color: #15803d;">✅ Chilling SKUs (Sufficient Stock)</h4>
+                            <div class="b2b-list" id="chillingList">
+                                <!-- Items go here -->
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.8rem; color: #94a3b8; text-align: right;">
+                        * Data fetched from Google Sheets & Calculated across Parent/Alt SKUs
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="controls-grid">
+
+                    <div class="control-group">
+                        <label>Date Range</label>
+                        <div class="date-presets" id="datePresets">
+                            <button class="btn-preset active" onclick="setDateRange(30, this)">1 Mo</button>
+                            <button class="btn-preset" onclick="setDateRange(60, this)">2 Mo</button>
+                            <button class="btn-preset" onclick="setDateRange(90, this)">3 Mo</button>
+                            <button class="btn-preset" onclick="setDateRange(180, this)">6 Mo</button>
+                            <button class="btn-preset" onclick="setDateRange(365, this)">1 Year</button>
+                            <button class="btn-preset" onclick="setYTD(this)">YTD</button>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="date" id="dateStart" onchange="removeDateHighlight(); runAnalysis()">
+                            <input type="date" id="dateEnd" onchange="removeDateHighlight(); runAnalysis()">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="filter-header">
+                            <label>Order Status</label>
+                            <div class="mode-toggle">
+                                <label><input type="radio" name="statusMode" value="include" checked
+                                        onchange="updateMode('status')"> Include</label>
+                                <label><input type="radio" name="statusMode" value="exclude"
+                                        onchange="updateMode('status')"> Exclude</label>
+                            </div>
+                        </div>
+                        <div class="multi-select-wrapper" id="statusWrapper">
+                            <div class="multi-input-container">
+                                <input type="text" class="search-input" placeholder="Search Status..."
+                                    autocomplete="off">
+                            </div>
+                            <div class="dropdown-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="filter-header">
+                            <label>Company</label>
+                            <div class="mode-toggle">
+                                <label><input type="radio" name="companyMode" value="include" checked
+                                        onchange="updateMode('company')"> Include</label>
+                                <label><input type="radio" name="companyMode" value="exclude"
+                                        onchange="updateMode('company')"> Exclude</label>
+                            </div>
+                        </div>
+                        <div class="multi-select-wrapper" id="companyWrapper">
+                            <div class="multi-input-container">
+                                <input type="text" class="search-input" placeholder="Search Company..."
+                                    autocomplete="off">
+                            </div>
+                            <div class="dropdown-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="filter-header">
+                            <label>Customer Name</label>
+                            <div class="mode-toggle">
+                                <label><input type="radio" name="customerMode" value="include" checked
+                                        onchange="updateMode('customer')"> Include</label>
+                                <label><input type="radio" name="customerMode" value="exclude"
+                                        onchange="updateMode('customer')"> Exclude</label>
+                            </div>
+                        </div>
+                        <div class="multi-select-wrapper" id="customerWrapper">
+                            <div class="multi-input-container">
+                                <input type="text" class="search-input" placeholder="Search Customer..."
+                                    autocomplete="off">
+                            </div>
+                            <div class="dropdown-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="filter-header">
+                            <label>Created By</label>
+                            <div class="mode-toggle">
+                                <label><input type="radio" name="createdByMode" value="include" checked
+                                        onchange="updateMode('createdBy')"> Include</label>
+                                <label><input type="radio" name="createdByMode" value="exclude"
+                                        onchange="updateMode('createdBy')"> Exclude</label>
+                            </div>
+                        </div>
+                        <div class="multi-select-wrapper" id="createdByWrapper">
+                            <div class="multi-input-container">
+                                <input type="text" class="search-input" placeholder="Search Creator..."
+                                    autocomplete="off">
+                            </div>
+                            <div class="dropdown-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label>SKU</label>
+                        <div class="multi-select-wrapper" id="skuWrapper">
+                            <div class="multi-input-container">
+                                <input type="text" class="search-input" placeholder="Search SKU..." autocomplete="off">
+                            </div>
+                            <div class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+
+                <div class="tabs">
+                    <div class="tab-btn active" onclick="switchTab('overview', this)">Overview & Data</div>
+                    <div class="tab-btn" onclick="switchTab('breakdown', this)">Pivot Breakdown</div>
+                </div>
+
+                <div id="tab-overview">
+                    <h2>Analysis Overview</h2>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-val" id="totalSold">0</div>
+                            <div class="metric-label">Total Units Sold</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-val" id="ordersCount">0</div>
+                            <div class="metric-label">Total Orders</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-val" id="uniqueSkus">0</div>
+                            <div class="metric-label">Unique SKUs</div>
+                        </div>
+                    </div>
+
+                    <div class="calculator">
+                        <h3 style="color: #059669; margin-bottom: 10px;">📦 Advanced Reorder Calculator</h3>
+                        <p style="font-size: 0.9rem; color: #4b5563; margin-bottom: 15px;">
+                            Based on <span id="daysCount">0</span> days of sales data.
+                        </p>
+
+                        <div class="calc-row">
+                            <div class="calc-input-group">
+                                <label>Current Stock:</label>
+                                <input type="number" id="currentStock" value="0" min="0" oninput="calculateReorder()"
+                                    style="width: 120px;">
+                            </div>
+
+                            <div class="calc-input-group">
+                                <label>Weeks Cover:</label>
+                                <input type="number" id="weeksCover" value="4.3" min="1" step="0.1"
+                                    oninput="removeCalcHighlight(); calculateReorder()" style="width: 120px;">
+                                <div class="calc-presets">
+                                    <button class="btn-calc-preset active" onclick="setCover(4.3, this)">1 Mo</button>
+                                    <button class="btn-calc-preset" onclick="setCover(8.6, this)">2 Mo</button>
+                                    <button class="btn-calc-preset" onclick="setCover(13, this)">3 Mo</button>
+                                </div>
+                            </div>
+
+                            <div style="flex-grow: 1; text-align: right;">
+                                <span style="font-size: 1.1rem; font-weight: bold;">Suggested Reorder Amount:</span>
+                                <div style="font-size: 2rem; font-weight: bold; color: #059669;" id="reorderSuggestion">
+                                    0</div>
+                            </div>
+                        </div>
+
+                        <div class="calc-details">
+                            <div class="calc-stat">
+                                <span id="statDailyAvg">0</span>
+                                <span>Daily Avg</span>
+                            </div>
+                            <div class="calc-stat">
+                                <span id="statSafetyStock">0</span>
+                                <span>Safety Buffer (Risk)</span>
+                            </div>
+                            <div class="calc-stat">
+                                <span id="statTotalDemand">0</span>
+                                <span>Total Needed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="calendar-section">
+                        <h3 style="margin-bottom: 15px;">📅 Monthly Sales Calendar</h3>
+                        <div class="calendar-grid" id="monthlyCalendar"></div>
+                    </div>
+
+                    <div class="table-container">
+                        <h3>Filtered Transaction Log</h3>
+                        <table id="dataTable">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortTable('date')">Date</th>
+                                    <th onclick="sortTable('id')">Order ID</th>
+                                    <th onclick="sortTable('sku')">SKU</th>
+                                    <th onclick="sortTable('product')">Product</th>
+                                    <th onclick="sortTable('status')">Status</th>
+                                    <th onclick="sortTable('company')">Company</th>
+                                    <th onclick="sortTable('customer')">Customer</th>
+                                    <th onclick="sortTable('createdBy')">Created By</th>
+                                    <th onclick="sortTable('qty')">Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+
+                        <div class="load-more-container">
+                            <p id="tableCountText" style="color: #64748b; margin-bottom: 10px;"></p>
+                            <button id="loadMoreBtn" class="btn-load-more hidden" onclick="loadMoreRows()">Load Next
+                                500</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-breakdown" class="hidden">
+                    <div class="breakdown-header">
+                        <h2 style="margin:0">Filtered Pivot View</h2>
+                        <div class="toggle-group">
+                            <button id="btn-pivot-sku" onclick="forceBreakdownMode('sku')">By SKU</button>
+                            <button id="btn-pivot-company" onclick="forceBreakdownMode('company')">By Company</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="breakdownTable">
+                            <thead id="breakdownHeader"></thead>
+                            <tbody id="breakdownBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Utils ---
+        const formatNum = (num) => {
+            return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        };
+
+        const formatDec = (num) => {
+            return num.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        };
+
+        // --- State ---
+        let rawData = [];
+        let currentFilteredData = [];
+        let breakdownMode = 'auto';
+        let currentRenderLimit = 500;
+        let sortCol = 'date';
+        let sortAsc = false;
+
+        // B2B Data State
+        let b2bData = {
+            list: [], // From Google Sheet
+            generalStock: {}, // From General Products CSV: { parentSku: { qty: 0, alts: [] } }
+            kitStock: {}, // From Title Kit CSV: { sku: qty }
+            skuMap: {} // Map Alternate SKU -> Parent SKU
+        };
+
+        // File State
+        const uploadedFiles = {
+            history: null,
+            kit: null,
+            general: null,
+            b2b: null
+        };
+
+        // Selection Sets
+        const selections = { sku: new Set(), status: new Set(), company: new Set(), createdBy: new Set(), customer: new Set() };
+        const modes = { status: 'include', company: 'include', createdBy: 'include', customer: 'include' };
+        const optionsList = { sku: [], status: [], company: [], createdBy: [], customer: [] };
+
+        // --- File Handling ---
+        function handleFileSelect(type, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            uploadedFiles[type] = file;
+
+            // Update UI
+            const card = document.getElementById(`card-${type}`);
+            const status = document.getElementById(`status-${type}`);
+
+            card.classList.add('uploaded');
+            status.innerText = `✅ ${file.name}`;
+
+            checkAllFilesUploaded();
+        }
+
+        function checkAllFilesUploaded() {
+            const btn = document.getElementById('processBtn');
+            const allUploaded = uploadedFiles.history && uploadedFiles.kit && uploadedFiles.general && uploadedFiles.b2b;
+
+            if (allUploaded) {
+                btn.removeAttribute('disabled');
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            }
+        }
+
+        async function processFiles() {
+            const btn = document.getElementById('processBtn');
+            btn.innerText = "⏳ Processing...";
+            btn.disabled = true;
+
+            try {
+                // 1. Read Files
+                const historyText = await readFile(uploadedFiles.history);
+                const kitText = await readFile(uploadedFiles.kit);
+                const generalText = await readFile(uploadedFiles.general);
+                const b2bText = await readFile(uploadedFiles.b2b);
+
+                // 2. Parse History (Original Logic)
+                rawData = parseCSV(historyText);
+
+                // 3. Parse Metadata Files
+                parseGeneralProducts(generalText);
+                parseTitleKit(kitText);
+                parseB2BList(b2bText);
+
+                // 4. Fetch Google Sheet Data
+                // 4. Manual B2B List (No Google Sheet)
+                // await fetchGoogleSheetData();
+
+                // 5. Init App
+                initApp();
+
+            } catch (err) {
+                document.getElementById('errorMsg').innerText = "Error: " + err.message;
+                console.error(err);
+                btn.innerText = "🚀 Process Files";
+                btn.disabled = false;
+            }
+        }
+
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        // --- Specialized Parsers ---
+        function parseGeneralProducts(csvText) {
+            // General Products: Col B (1) = Parent, Col AN (39) = Qty, Col FI (164) - JL (271) = Alts
+            const lines = csvText.split('\n');
+            b2bData.generalStock = {};
+            b2bData.skuMap = {};
+
+            // Start from 1 to skip header (assuming header exists)
+            for (let i = 1; i < lines.length; i++) {
+
+                // Let's use a quick parser for performance as this file might be wide
+                const row = parseLineSimple(lines[i]);
+                if (row.length < 40) continue; // Safety check
+
+                const parent = row[1]?.trim();
+                if (!parent) continue;
+
+                const qty = parseFloat(row[39]) || 0;
+                const incoming = parseFloat(row[41]) || 0; // Col AP
+
+                // Collect Alternates
+                const alts = [];
+                // Columns FI (164) to JL (271)
+                // Ensure row has enough columns
+                const maxCol = Math.min(row.length, 272);
+                for (let c = 164; c < maxCol; c++) {
+                    if (row[c] && row[c].trim() !== '') {
+                        const alt = row[c].trim();
+                        alts.push(alt);
+                        b2bData.skuMap[alt] = parent;
+                    }
+                }
+
+                // Map Parent to itself too
+                b2bData.skuMap[parent] = parent;
+
+                b2bData.generalStock[parent] = {
+                    qty: qty,
+                    incoming: incoming,
+                    alts: alts
+                };
+            }
+        }
+
+        function parseTitleKit(csvText) {
+            // Title Kit: "Kit SKU" (Col A?) and "Available Quantity" (Col D?)
+            const lines = csvText.split('\n');
+            b2bData.kitStock = {};
+
+            if (lines.length < 2) return;
+
+            // Header Detection
+            const headerRow = parseLineSimple(lines[0].toLowerCase());
+            let idxSku = headerRow.findIndex(h => h.includes('kit sku') || h === 'sku');
+            let idxQty = headerRow.findIndex(h => h.includes('available quantity') || h.includes('quantity'));
+
+            // Fallbacks if not found (assuming A and D / 0 and 3)
+            if (idxSku === -1) idxSku = 0;
+            if (idxQty === -1) idxQty = 3;
+
+            console.log(`Title Kit Parsed: SKU Index ${idxSku}, Qty Index ${idxQty}`);
+
+            for (let i = 1; i < lines.length; i++) {
+                const row = parseLineSimple(lines[i]);
+                if (row.length <= Math.max(idxSku, idxQty)) continue;
+
+                const sku = row[idxSku]?.trim();
+                if (!sku) continue;
+
+                const qty = parseFloat(row[idxQty]) || 0;
+                b2bData.kitStock[sku] = qty;
+            }
+        }
+
+        function parseB2BList(csvText) {
+            // B2B List: Dynamic Headers for SKU, Min, Ignore
+            const lines = csvText.split('\n');
+            b2bData.list = [];
+
+            if (lines.length < 2) return;
+
+            // Header Detection
+            const headerRow = parseLineSimple(lines[0].toLowerCase());
+            let idxSku = headerRow.findIndex(h => h === 'sku');
+            let idxMin = headerRow.findIndex(h => h.includes('min') || h.includes('minimum'));
+            let idxIgnore = headerRow.findIndex(h => h.includes('ignore'));
+
+            // Fallbacks
+            if (idxSku === -1) idxSku = 0;
+            if (idxMin === -1) idxMin = 1;
+
+            console.log(`B2B List Parsed: SKU=${idxSku}, Min=${idxMin}, Ignore=${idxIgnore}`);
+
+            for (let i = 1; i < lines.length; i++) {
+                const row = parseLineSimple(lines[i]);
+                if (row.length <= Math.max(idxSku, idxMin)) continue;
+
+                const sku = row[idxSku]?.trim();
+                if (!sku) continue;
+
+                const min = parseFloat(row[idxMin]) || 0;
+
+                // Ignore if column exists and has any value (not empty/null)
+                let ignore = false;
+                if (idxIgnore !== -1 && row[idxIgnore]) {
+                    const val = row[idxIgnore].trim().toLowerCase();
+                    if (val && val !== 'false' && val !== '0' && val !== 'no') {
+                        ignore = true;
+                    }
+                }
+
+                b2bData.list.push({ sku, min, ignore });
+            }
+            console.log(`Loaded ${b2bData.list.length} B2B SKUs`);
+        }
+
+        async function fetchGoogleSheetData() {
+            // ... (Google Sheet fetch logic retained but mostly unused if manual upload used)
+            // Ideally should update this too but user relies on CSV upload now.
+            // Keeping as is for now or just log warning.
+            console.warn("Google Sheet fetch skipped in favor of manual upload logic.");
+        }
+
+        // CSV Line Parser (Simple regex based)
+        function parseLineSimple(text) {
+            // ... existing parser ...
+            const re_valid = /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/;
+            let arr = [];
+            let quote = false;
+            let c = 0;
+            let col = "";
+            for (; c < text.length; c++) {
+                let cc = text[c];
+                if (cc == '"') { quote = !quote; continue; }
+                if (cc == ',' && !quote) { arr.push(col); col = ""; continue; }
+                col += cc;
+            }
+            arr.push(col);
+            return arr;
+        }
+
+        // --- CSV Parsing (Order History) ---
+        // --- CSV Parsing (Order History) ---
+        function parseCSV(text) {
+            text = text.replace(/^\uFEFF/, '');
+            const lines = text.split('\n').filter(l => l.trim() !== '');
+            if (lines.length === 0) return [];
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+
+            const parseLine = (line) => {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') { inQuotes = !inQuotes; }
+                    else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+                    else { current += char; }
+                }
+                result.push(current);
+                return result.map(s => s.trim().replace(/^"|"$/g, ''));
+            };
+
+            const idx = {
+                date: headers.findIndex(h => h.includes('date')),
+                id: headers.findIndex(h => h.includes('order id') || h.includes('order number')),
+                status: headers.findIndex(h => h.includes('order st') || h.includes('status')),
+                company: headers.findIndex(h => h.includes('billing c') || h.includes('company')),
+                firstName: headers.findIndex(h => h.includes('billing first') || h.includes('first name')),
+                lastName: headers.findIndex(h => h.includes('billing last') || h.includes('last name')),
+                createdBy: headers.findIndex(h => h.includes('created by') || h.includes('creator') || h === 'user'),
+                sku: headers.findIndex(h => h === 'sku'),
+                product: headers.findIndex(h => h.includes('product')),
+                qty: headers.findIndex(h => h.includes('quantity') || h.includes('qty'))
+            };
+
+            if (idx.date === -1 || idx.qty === -1) throw new Error("Missing Date or Quantity columns.");
+
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const row = parseLine(lines[i]);
+                if (row.length < headers.length) continue;
+                let d = new Date(row[idx.date]);
+                if (isNaN(d.getTime())) d = new Date();
+
+                let fName = idx.firstName !== -1 ? row[idx.firstName] : '';
+                let lName = idx.lastName !== -1 ? row[idx.lastName] : '';
+                let fullName = (fName + ' ' + lName).trim();
+                if (!fullName) fullName = 'Unknown';
+
+                data.push({
+                    date: d,
+                    originalDate: row[idx.date],
+                    id: row[idx.id],
+                    status: row[idx.status] || 'Unknown',
+                    company: row[idx.company] || 'N/A',
+                    customer: fullName,
+                    createdBy: idx.createdBy !== -1 ? (row[idx.createdBy] || 'Unknown') : 'N/A',
+                    sku: row[idx.sku] || 'N/A',
+                    product: row[idx.product],
+                    qty: parseFloat(row[idx.qty]) || 0
+                });
+            }
+            return data;
+        }
+
+        // --- B2B Logic ---
+        function runB2BAnalysis() {
+            try {
+                const months = parseInt(document.getElementById('forecastMonths').value) || 1;
+                const flaggedList = document.getElementById('flaggedList');
+                const chillingList = document.getElementById('chillingList');
+                // ... (init vars) ...
+
+                flaggedList.innerHTML = '';
+                chillingList.innerHTML = '';
+
+                // Calculate Daily Sales Velocity for ALL SKUs based on History
+                const now = new Date();
+                const startRange90 = new Date(); startRange90.setDate(now.getDate() - 90);
+                const startRange180 = new Date(); startRange180.setDate(now.getDate() - 180);
+
+                const salesVelocity90 = {};
+                const salesVelocity180 = {};
+
+                rawData.forEach(row => {
+                    // ... (velocity calc) ...
+                    if (!salesVelocity90[row.sku]) salesVelocity90[row.sku] = 0;
+                    if (!salesVelocity180[row.sku]) salesVelocity180[row.sku] = 0;
+
+                    if (row.date >= startRange90) { salesVelocity90[row.sku] += row.qty; }
+                    if (row.date >= startRange180) { salesVelocity180[row.sku] += row.qty; }
+                });
+
+                let flaggedCount = 0;
+                let chillingCount = 0;
+
+                b2bData.flaggedItems = []; // Reset for Export
+
+                b2bData.list.forEach(item => {
+                    const targetSku = item.sku;
+                    const min = item.min;
+                    const isIgnored = item.ignore; // CHECK IGNORE
+
+                    // 1. Resolve Parent Group
+                    // ...
+                    // If the targetSku is a child, find parent. If it is parent, good.
+                    // We use b2bData.skuMap to find "Canonical Parent".
+                    // If not in map, assume it is its own parent or not in General Product file.
+
+                    // Case A: targetSku is in General Products (either as parent or alt)
+                    let parentSku = b2bData.skuMap[targetSku] || targetSku;
+
+                    // Get Stock Info
+                    let totalStock = 0;
+                    let incomingStock = 0;
+
+                    if (b2bData.generalStock[parentSku]) {
+                        const genData = b2bData.generalStock[parentSku];
+                        totalStock += genData.qty;
+                        incomingStock = genData.incoming || 0;
+                        // stockBreakdown.push(`Gen: ${genData.qty}`);
+
+                        // Add Kit Stock for Parent
+                        if (b2bData.kitStock[parentSku]) {
+                            totalStock += b2bData.kitStock[parentSku];
+                        }
+
+                        // Add Kit Stock for Alts? USER SAID: "pull the parent sku for that sku and any other altnerate sku"
+                        // Assumption: Kit stock listing might mention Alts directly.
+                        genData.alts.forEach(alt => {
+                            if (b2bData.kitStock[alt]) {
+                                totalStock += b2bData.kitStock[alt];
+                            }
+                        });
+
+                    } else {
+                        // Fallback if not found in General Products structure
+                        // Maybe it exists in Kit Stock directly
+                        if (b2bData.kitStock[targetSku]) {
+                            totalStock += b2bData.kitStock[targetSku];
+                        }
+                    }
+
+                    // 2. Calculate Run Rates (Parent + Alts)
+                    let totalSales90 = 0;
+                    let totalSales180 = 0;
+
+                    const skusToSum = [parentSku];
+                    if (b2bData.generalStock[parentSku]) {
+                        skusToSum.push(...b2bData.generalStock[parentSku].alts);
+                    }
+
+                    skusToSum.forEach(s => {
+                        totalSales90 += (salesVelocity90[s] || 0);
+                        totalSales180 += (salesVelocity180[s] || 0);
+                    });
+
+                    const rate3Mo = totalSales90 / 3;
+                    const rate6Mo = totalSales180 / 6;
+
+                    const dailyRate = totalSales90 / 90;
+                    // const monthlyRate = dailyRate * 30;
+
+                    // 3. Logic Checks
+                    const daysLeft = dailyRate > 0 ? (totalStock / dailyRate) : 9999;
+                    const monthsLeft = daysLeft / 30;
+
+                    const willRunOut = monthsLeft < months;
+                    const belowMin = totalStock < min;
+
+                    // Render Item
+                    const div = document.createElement('div');
+                    div.className = 'b2b-item';
+                    div.dataset.sku = targetSku.toLowerCase(); // For Search
+
+                    let issues = [];
+                    if (belowMin) issues.push(`Below Min (${min})`);
+                    if (willRunOut) issues.push(`Runs out in ${formatDec(monthsLeft)} mo`);
+
+                    const html = `
+                        <div style="flex: 1;">
+                            <strong>${targetSku}</strong> 
+                            <div style="font-size: 0.75rem; color: #94a3b8;">Parent: ${parentSku}</div>
+                        </div>
+                        
+                        <div style="flex: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; font-size: 0.85rem;">
+                            <div>
+                                <div style="font-weight: bold;">${formatNum(rate3Mo)}</div>
+                                <div style="color: #64748b; font-size: 0.7rem;">3Mo Rate</div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold;">${formatNum(rate6Mo)}</div>
+                                <div style="color: #64748b; font-size: 0.7rem;">6Mo Rate</div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; color: ${incomingStock > 0 ? '#0ea5e9' : '#334155'}">${formatNum(incomingStock)}</div>
+                                <div style="color: #64748b; font-size: 0.7rem;">Incoming</div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold;">${formatNum(totalStock)}</div>
+                                <div style="color: #64748b; font-size: 0.7rem;">On Hand</div>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1; text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px;">
+                            ${issues.length > 0 ? issues.map(i => `<span class="warning-pill">${i}</span>`).join('') : '<span style="color:#15803d; font-size:0.8em">Healthy</span>'}
+                        </div>
+                    `;
+                    div.innerHTML = html;
+
+                    if (belowMin || willRunOut) {
+                        // Skip if Ignored
+                        if (isIgnored) {
+                            chillingList.appendChild(div);
+                            chillingCount++;
+                        } else {
+                            flaggedList.appendChild(div);
+                            flaggedCount++;
+                            // Add to Export List
+                            b2bData.flaggedItems.push({
+                                sku: targetSku,
+                                parent: parentSku,
+                                min: min,
+                                stock: totalStock,
+                                incoming: incomingStock,
+                                rate3Mo: rate3Mo,
+                                rate6Mo: rate6Mo,
+                                issues: issues.join('; ')
+                            });
+                        }
+                    } else {
+                        chillingList.appendChild(div);
+                        chillingCount++;
+                    }
+                });
+
+                document.getElementById('b2b-summary-text').innerText = `${flaggedCount} Flagged, ${chillingCount} OK`;
+                document.getElementById('flaggedCount').innerText = `(${flaggedCount})`;
+                document.getElementById('b2bContent').classList.add('open'); // Auto open if running analysis
+            } catch (err) {
+                console.error("B2B Analysis Error:", err);
+                document.getElementById('b2b-summary-text').innerHTML = `<span style="color: red;">Error: ${err.message}</span>`;
+            }
+        }
+
+        // --- B2B Features ---
+        function filterFlaggedList() {
+            const term = document.getElementById('flaggedSearch').value.toLowerCase();
+            const list = document.getElementById('flaggedList');
+            const items = list.getElementsByClassName('b2b-item');
+
+            for (let item of items) {
+                const sku = item.dataset.sku;
+                if (sku.includes(term)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            }
+        }
+
+        function exportFlaggedCSV() {
+            if (!b2bData.flaggedItems || b2bData.flaggedItems.length === 0) {
+                alert("No flagged items to export.");
+                return;
+            }
+
+            const headers = ['SKU', 'Parent SKU', 'Min Stock', 'Total Stock', 'Incoming', '3Mo Rate', '6Mo Rate', 'Issues'];
+            const rows = b2bData.flaggedItems.map(i => [
+                `"${i.sku}"`,
+                `"${i.parent}"`,
+                i.min,
+                i.stock,
+                i.incoming,
+                i.rate3Mo.toFixed(2),
+                i.rate6Mo.toFixed(2),
+                `"${i.issues}"`
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(r => r.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `flagged_skus_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function toggleB2B() {
+            const el = document.getElementById('b2bContent');
+        }
+
+        // --- Init ---
+        function initApp() {
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('appInterface').classList.remove('hidden');
+
+            optionsList.sku = [...new Set(rawData.map(d => d.sku))].filter(s => s !== 'N/A').sort();
+            optionsList.status = [...new Set(rawData.map(d => d.status))].sort();
+            optionsList.company = [...new Set(rawData.map(d => d.company))].sort();
+            optionsList.customer = [...new Set(rawData.map(d => d.customer))].sort();
+            optionsList.createdBy = [...new Set(rawData.map(d => d.createdBy))].sort();
+
+            setupMultiSelect('skuWrapper', 'sku');
+            setupMultiSelect('statusWrapper', 'status');
+            setupMultiSelect('companyWrapper', 'company');
+            setupMultiSelect('customerWrapper', 'customer');
+            setupMultiSelect('createdByWrapper', 'createdBy');
+
+            setDateRange(30);
+
+            // Run initial B2B Analysis
+            if (b2bData.list.length > 0) {
+                runB2BAnalysis();
+            } else {
+                document.getElementById('b2b-summary-text').innerText = "No B2B Data Loaded";
+            }
+        }
+
+        // --- Multi-Select ---
+        function setupMultiSelect(wrapperId, type) {
+            const wrapper = document.getElementById(wrapperId);
+            const inputContainer = wrapper.querySelector('.multi-input-container');
+            const input = wrapper.querySelector('.search-input');
+            const list = wrapper.querySelector('.dropdown-list');
+
+            // Create Container for Helper Buttons
+            const btnContainer = document.createElement('div');
+            btnContainer.className = 'helper-btns';
+            wrapper.appendChild(btnContainer);
+
+            // 1. Toggle Button (Show All / Collapse)
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'expand-toggle-btn';
+            toggleBtn.innerText = 'Show All';
+            toggleBtn.onclick = () => {
+                const isExpanded = inputContainer.classList.contains('expanded');
+                if (isExpanded) {
+                    inputContainer.classList.remove('expanded');
+                    toggleBtn.innerText = `Show All (${selections[type].size} selected)`;
+                } else {
+                    inputContainer.classList.add('expanded');
+                    toggleBtn.innerText = 'Collapse';
+                }
+            };
+            btnContainer.appendChild(toggleBtn);
+            wrapper.toggleBtnRef = toggleBtn;
+
+            // 2. Unselect All Button (NEW)
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'clear-all-btn';
+            clearBtn.innerText = 'Unselect All';
+            clearBtn.onclick = () => {
+                selections[type].clear();
+                inputContainer.classList.remove('expanded');
+                renderTags(inputContainer, input, type);
+                input.value = '';
+                runAnalysis();
+            };
+            btnContainer.appendChild(clearBtn);
+            wrapper.clearBtnRef = clearBtn;
+
+
+            input.addEventListener('input', (e) => {
+                renderDropdown(list, type, e.target.value.trim().toLowerCase());
+            });
+
+            // Auto expand when user clicks to search
+            input.addEventListener('focus', () => {
+                inputContainer.classList.add('expanded');
+                if (wrapper.toggleBtnRef.style.display !== 'none') {
+                    wrapper.toggleBtnRef.innerText = 'Collapse';
+                }
+                renderDropdown(list, type, input.value.trim().toLowerCase());
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!wrapper.contains(e.target)) {
+                    list.style.display = 'none';
+                    input.value = '';
+                }
+            });
+
+            window[`add_${type}`] = (val) => {
+                selections[type].add(val);
+                renderTags(inputContainer, input, type);
+                input.focus();
+                renderDropdown(list, type, input.value.trim().toLowerCase());
+                runAnalysis();
+            };
+        }
+
+        function updateMode(type) {
+            const value = document.querySelector(`input[name="${type}Mode"]:checked`).value;
+            modes[type] = value;
+            const wrapper = document.getElementById(`${type}Wrapper`);
+            value === 'exclude' ? wrapper.classList.add('exclude-active') : wrapper.classList.remove('exclude-active');
+            runAnalysis();
+        }
+
+        function renderDropdown(listEl, type, filterText) {
+            listEl.innerHTML = '';
+            const matches = optionsList[type].filter(item =>
+                item.toLowerCase().includes(filterText) && !selections[type].has(item)
+            );
+
+            if (matches.length === 0) {
+                listEl.style.display = 'none';
+                return;
+            }
+
+            // Select All Logic
+            if (filterText.trim() !== '' && matches.length > 0) {
+                const selectAllDiv = document.createElement('div');
+                selectAllDiv.className = 'dropdown-option select-all';
+                selectAllDiv.innerText = `👉 Select All (${matches.length} Results)`;
+
+                selectAllDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    matches.forEach(m => selections[type].add(m));
+
+                    const wrapper = listEl.parentElement;
+                    const inputContainer = wrapper.querySelector('.multi-input-container');
+                    const input = wrapper.querySelector('.search-input');
+
+                    renderTags(inputContainer, input, type);
+
+                    input.value = '';
+                    listEl.style.display = 'none';
+                    input.focus();
+
+                    runAnalysis();
+                };
+                listEl.appendChild(selectAllDiv);
+            }
+
+            matches.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'dropdown-option';
+                div.innerText = item;
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    window[`add_${type}`](item);
+                };
+                listEl.appendChild(div);
+            });
+            listEl.style.display = 'block';
+        }
+
+        function renderTags(container, inputEl, type) {
+            container.querySelectorAll('.tag').forEach(t => t.remove());
+            selections[type].forEach(val => {
+                const tag = document.createElement('div');
+                tag.className = 'tag';
+                tag.innerHTML = `${val} <span onclick="removeSelection('${type}', '${val.replace(/'/g, "\\'")}')">&times;</span>`;
+                container.insertBefore(tag, inputEl);
+            });
+
+            // Update Toggle Buttons Logic
+            const wrapper = container.parentElement;
+            if (wrapper.toggleBtnRef && wrapper.clearBtnRef) {
+                const count = selections[type].size;
+                if (count > 0) {
+                    // Show both buttons
+                    wrapper.toggleBtnRef.style.display = 'block';
+                    wrapper.clearBtnRef.style.display = 'block';
+
+                    if (!container.classList.contains('expanded')) {
+                        wrapper.toggleBtnRef.innerText = `Show All (${count} selected)`;
+                    } else {
+                        wrapper.toggleBtnRef.innerText = 'Collapse';
+                    }
+                } else {
+                    // Hide both if nothing selected
+                    wrapper.toggleBtnRef.style.display = 'none';
+                    wrapper.clearBtnRef.style.display = 'none';
+                    container.classList.remove('expanded');
+                }
+            }
+        }
+
+        window.removeSelection = (type, val) => {
+            selections[type].delete(val);
+            const wrapper = document.getElementById(`${type}Wrapper`);
+            renderTags(wrapper.querySelector('.multi-input-container'), wrapper.querySelector('.search-input'), type);
+            runAnalysis();
+        };
+
+        // --- Tab Logic ---
+        function switchTab(tabName, btnElement) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            document.getElementById('tab-overview').classList.add('hidden');
+            document.getElementById('tab-breakdown').classList.add('hidden');
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+        }
+
+        function forceBreakdownMode(mode) {
+            breakdownMode = mode;
+            renderBreakdown();
+        }
+
+        // --- Date Logic ---
+        function removeDateHighlight() {
+            document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+        }
+
+        function setDateRange(days, btnElement) {
+            removeDateHighlight();
+            if (btnElement) btnElement.classList.add('active');
+
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - days);
+            document.getElementById('dateStart').value = start.toISOString().split('T')[0];
+            document.getElementById('dateEnd').value = end.toISOString().split('T')[0];
+            runAnalysis();
+        }
+
+        function setYTD(btnElement) {
+            removeDateHighlight();
+            if (btnElement) btnElement.classList.add('active');
+
+            const end = new Date();
+            const start = new Date(new Date().getFullYear(), 0, 1);
+            document.getElementById('dateStart').value = start.toISOString().split('T')[0];
+            document.getElementById('dateEnd').value = end.toISOString().split('T')[0];
+            runAnalysis();
+        }
+
+        // --- Analysis Core ---
+        function runAnalysis() {
+            currentRenderLimit = 500;
+
+            const start = new Date(document.getElementById('dateStart').value);
+            const end = new Date(document.getElementById('dateEnd').value);
+            end.setHours(23, 59, 59, 999);
+
+            currentFilteredData = rawData.filter(row => {
+                const dateValid = row.date >= start && row.date <= end;
+
+                let statusValid = true;
+                if (selections.status.size > 0) {
+                    const hasStatus = selections.status.has(row.status);
+                    statusValid = modes.status === 'include' ? hasStatus : !hasStatus;
+                }
+
+                let companyValid = true;
+                if (selections.company.size > 0) {
+                    const hasCompany = selections.company.has(row.company);
+                    companyValid = modes.company === 'include' ? hasCompany : !hasCompany;
+                }
+
+                let customerValid = true;
+                if (selections.customer.size > 0) {
+                    const hasCustomer = selections.customer.has(row.customer);
+                    customerValid = modes.customer === 'include' ? hasCustomer : !hasCustomer;
+                }
+
+                let createdByValid = true;
+                if (selections.createdBy.size > 0) {
+                    const hasCreator = selections.createdBy.has(row.createdBy);
+                    createdByValid = modes.createdBy === 'include' ? hasCreator : !hasCreator;
+                }
+
+                const skuValid = selections.sku.size === 0 || selections.sku.has(row.sku);
+                return dateValid && statusValid && companyValid && customerValid && createdByValid && skuValid;
+            });
+
+            // Overview Metrics
+            const totalQty = currentFilteredData.reduce((sum, row) => sum + row.qty, 0);
+            document.getElementById('totalSold').innerText = formatNum(totalQty);
+            document.getElementById('ordersCount').innerText = formatNum(new Set(currentFilteredData.map(r => r.id)).size);
+            document.getElementById('uniqueSkus').innerText = formatNum(new Set(currentFilteredData.map(r => r.sku)).size);
+
+            // Calc
+            const diffDays = Math.max(1, Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)));
+            document.getElementById('daysCount').innerText = diffDays;
+
+            // Variance/StdDev Calc
+            const dailyTotals = {};
+            currentFilteredData.forEach(row => {
+                const dateKey = row.date.toISOString().split('T')[0];
+                dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + row.qty;
+            });
+
+            const mean = totalQty / diffDays;
+            const values = Object.values(dailyTotals);
+            let currentSumSq = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0);
+
+            // Account for 0 sales days
+            const daysWithSales = values.length;
+            const daysWithoutSales = Math.max(0, diffDays - daysWithSales);
+            currentSumSq += daysWithoutSales * Math.pow(0 - mean, 2);
+
+            const variance = currentSumSq / diffDays;
+            const stdDev = Math.sqrt(variance);
+
+            window.calcStats = { mean: mean, stdDev: stdDev };
+
+            calculateReorder();
+            renderTable();
+            renderMonthlyCalendar();
+            renderBreakdown();
+        }
+
+        // --- Reorder Logic ---
+        function removeCalcHighlight() {
+            document.querySelectorAll('.btn-calc-preset').forEach(b => b.classList.remove('active'));
+        }
+
+        function setCover(val, btnElement) {
+            removeCalcHighlight();
+            if (btnElement) btnElement.classList.add('active');
+            document.getElementById('weeksCover').value = val;
+            calculateReorder();
+        }
+
+        function calculateReorder() {
+            if (!window.calcStats) return;
+
+            const currentStock = parseFloat(document.getElementById('currentStock').value) || 0;
+            const weeksCover = parseFloat(document.getElementById('weeksCover').value) || 0;
+            const daysCover = weeksCover * 7;
+
+            // Base Demand
+            const baseDemand = window.calcStats.mean * daysCover;
+
+            // Safety Stock (Buffer)
+            const safetyStock = 1.65 * window.calcStats.stdDev * Math.sqrt(daysCover);
+
+            const totalNeeded = baseDemand + safetyStock;
+            const orderAmount = Math.max(0, Math.ceil(totalNeeded - currentStock));
+
+            // Update UI
+            document.getElementById('statDailyAvg').innerText = formatDec(window.calcStats.mean);
+            document.getElementById('statSafetyStock').innerText = formatNum(Math.ceil(safetyStock));
+            document.getElementById('statTotalDemand').innerText = formatNum(Math.ceil(totalNeeded));
+
+            const el = document.getElementById('reorderSuggestion');
+            el.innerText = orderAmount > 0 ? `${formatNum(orderAmount)}` : "Healthy";
+            el.style.color = orderAmount > 0 ? "#ef4444" : "#10b981";
+        }
+
+        // --- Rendering ---
+        function sortTable(column) {
+            if (sortCol === column) { sortAsc = !sortAsc; }
+            else { sortCol = column; sortAsc = true; }
+            renderTable();
+        }
+
+        function loadMoreRows() {
+            currentRenderLimit += 500;
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = '';
+
+            document.querySelectorAll('#dataTable th').forEach(th => {
+                th.classList.remove('asc', 'desc');
+                if (th.innerText.toLowerCase().includes(sortCol === 'id' ? 'order id' : sortCol)) {
+                    th.classList.add(sortAsc ? 'asc' : 'desc');
+                }
+            });
+
+            const sorted = [...currentFilteredData].sort((a, b) => {
+                let valA = a[sortCol];
+                let valB = b[sortCol];
+                if (valA instanceof Date) valA = valA.getTime();
+                if (valB instanceof Date) valB = valB.getTime();
+                if (valA < valB) return sortAsc ? -1 : 1;
+                if (valA > valB) return sortAsc ? 1 : -1;
+                return 0;
+            });
+
+            const visibleRows = sorted.slice(0, currentRenderLimit);
+            visibleRows.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                <td>${row.originalDate}</td>
+                <td>${row.id}</td>
+                <td>${row.sku}</td>
+                <td>${row.product}</td>
+                <td>${row.status}</td>
+                <td>${row.company}</td>
+                <td>${row.customer}</td>
+                <td>${row.createdBy}</td>
+                <td><strong>${formatNum(row.qty)}</strong></td>
+            `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('tableCountText').innerText = `Showing ${formatNum(visibleRows.length)} of ${formatNum(sorted.length)} results`;
+            const loadBtn = document.getElementById('loadMoreBtn');
+            visibleRows.length < sorted.length ? loadBtn.classList.remove('hidden') : loadBtn.classList.add('hidden');
+        }
+
+        function renderBreakdown() {
+            let effectiveMode = breakdownMode;
+            if (breakdownMode === 'auto') {
+                effectiveMode = (selections.sku.size > 0 && selections.company.size === 0) ? 'company' : 'sku';
+            }
+
+            document.querySelectorAll('.toggle-group button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-pivot-${effectiveMode}`).classList.add('active');
+
+            const thead = document.getElementById('breakdownHeader');
+            const tbody = document.getElementById('breakdownBody');
+            tbody.innerHTML = '';
+            thead.innerHTML = '';
+
+            if (effectiveMode === 'sku') {
+                thead.innerHTML = `<tr><th>SKU</th><th>Product Name</th><th>Total Quantity</th></tr>`;
+                const stats = {};
+                currentFilteredData.forEach(row => {
+                    if (!stats[row.sku]) stats[row.sku] = { qty: 0, name: row.product };
+                    stats[row.sku].qty += row.qty;
+                });
+                const sorted = Object.entries(stats).sort((a, b) => b[1].qty - a[1].qty);
+                sorted.forEach(([sku, data]) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${sku}</td><td>${data.name}</td><td><strong>${formatNum(data.qty)}</strong></td>`;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                thead.innerHTML = `<tr><th>Company</th><th>Total Quantity</th></tr>`;
+                const stats = {};
+                currentFilteredData.forEach(row => {
+                    if (!stats[row.company]) stats[row.company] = 0;
+                    stats[row.company] += row.qty;
+                });
+                const sorted = Object.entries(stats).sort((a, b) => b[1] - a[1]);
+                sorted.forEach(([company, qty]) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${company}</td><td><strong>${formatNum(qty)}</strong></td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        function renderMonthlyCalendar() {
+            const calendarEl = document.getElementById('monthlyCalendar');
+            calendarEl.innerHTML = '';
+
+            const monthlyStats = {};
+
+            // Aggregate
+            currentFilteredData.forEach(row => {
+                const d = row.date;
+                // Use local time components to avoid timezone shifts affecting the month bucket
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+
+                if (!monthlyStats[key]) {
+                    monthlyStats[key] = { qty: 0, year: d.getFullYear(), monthIdx: d.getMonth(), companies: {} };
+                }
+                monthlyStats[key].qty += row.qty;
+
+                // Company Aggregation
+                const comp = row.company;
+                if (!monthlyStats[key].companies[comp]) {
+                    monthlyStats[key].companies[comp] = 0;
+                }
+                monthlyStats[key].companies[comp] += row.qty;
+            });
+
+            // Sort Keys Chronologically
+            const sortedKeys = Object.keys(monthlyStats).sort();
+
+            if (sortedKeys.length === 0) {
+                calendarEl.innerHTML = '<p style="grid-column: 1/-1; color: #64748b; font-style: italic;">No sales data available for the selected period.</p>';
+                return;
+            }
+
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            sortedKeys.forEach(key => {
+                const stats = monthlyStats[key];
+                const monthName = monthNames[stats.monthIdx];
+
+                // Sort companies by qty desc
+                const sortedCompanies = Object.entries(stats.companies).sort((a, b) => b[1] - a[1]);
+
+                let companyListHtml = '<div class="month-company-list">';
+                sortedCompanies.forEach(([name, qty]) => {
+                    companyListHtml += `
+                        <div class="month-company-item" title="${name}">
+                            <span>${name}</span>
+                            <span>${formatNum(qty)}</span>
+                        </div>
+                    `;
+                });
+                companyListHtml += '</div>';
+
+                const div = document.createElement('div');
+                div.className = 'month-card';
+                div.innerHTML = `
+                <div class="month-name">${monthName} ${stats.year}</div>
+                <div class="month-total">${formatNum(stats.qty)}</div>
+                ${companyListHtml}
+            `;
+                calendarEl.appendChild(div);
+            });
+        }
+    </script>
+
+</body>
+
+</html>
