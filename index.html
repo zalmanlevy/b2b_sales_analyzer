@@ -701,6 +701,11 @@
             background: #fef2f2;
         }
 
+        .b2b-ignored {
+            border-top: 4px solid #94a3b8;
+            background: #f8fafc;
+        }
+
         .b2b-list {
             max-height: 300px;
             overflow-y: auto;
@@ -830,6 +835,15 @@
                                 onkeydown="if(event.key === 'Enter') filterFlaggedList()"
                                 style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #e2e8f0; border-radius: 6px; box-sizing: border-box; font-size: 0.9rem;">
                             <div class="b2b-list" id="flaggedList">
+                                <!-- Items go here -->
+                            </div>
+                        </div>
+
+                        <!-- Ignored SKUs -->
+                        <div class="b2b-sub-section b2b-ignored">
+                            <h4 style="margin-top: 0; color: #64748b;">🚫 Ignored SKUs <span id="ignoredCount"
+                                    style="font-size: 0.8em; font-weight: normal;"></span></h4>
+                            <div class="b2b-list" id="ignoredList">
                                 <!-- Items go here -->
                             </div>
                         </div>
@@ -1101,7 +1115,8 @@
             list: [], // From Google Sheet
             generalStock: {}, // From General Products CSV: { parentSku: { qty: 0, alts: [] } }
             kitStock: {}, // From Title Kit CSV: { sku: qty }
-            skuMap: {} // Map Alternate SKU -> Parent SKU
+            skuMap: {}, // Map Alternate SKU -> Parent SKU
+            ignoredSet: new Set() // Blacklist from B2B List "Ignore" column
         };
 
         // File State
@@ -1191,36 +1206,77 @@
 
         // --- Specialized Parsers ---
         function parseGeneralProducts(csvText) {
-            // General Products: Col B (1) = Parent, Col AN (39) = Qty, Col FI (164) - JL (271) = Alts
             const lines = csvText.split('\n');
             b2bData.generalStock = {};
             b2bData.skuMap = {};
 
-            // Start from 1 to skip header (assuming header exists)
+            if (lines.length < 2) return;
+
+            // 1. Parse Headers to find column indices
+            // We use the helper parseLineSimple for consistency
+            const headers = parseLineSimple(lines[0]);
+            // Normalize headers for easier matching: match "Quantity On Hand" vs "quantityonhand" flexible
+            const formattedHeaders = headers.map(h => h.trim().toLowerCase());
+
+            let idxParent = -1;
+            let idxQty = -1;
+            let idxIncoming = -1;
+            const altIndices = [];
+
+            formattedHeaders.forEach((h, index) => {
+                const cleanHeader = h.replace(/\s+/g, ' '); // Normalize spaces
+
+                if (cleanHeader === 'sku') {
+                    idxParent = index;
+                } else if (cleanHeader === 'quantity on hand') {
+                    idxQty = index;
+                } else if (cleanHeader === 'quantity incoming') {
+                    idxIncoming = index;
+                } else if (cleanHeader.startsWith('alternate sku')) {
+                    altIndices.push(index);
+                }
+            });
+
+            console.log(`General Products Headers mapped: SKU=${idxParent}, Qty=${idxQty}, Incoming=${idxIncoming}, AltCols=${altIndices.length}`);
+
+            if (idxParent === -1) {
+                console.error("Critical: 'SKU' column not found in General Products CSV.");
+                // We might want to alert the user here or fallback, but strict requirement implies failure or fix needed.
+                // For now, let's fallback to index 1 widely used before just in case, but warn.
+                idxParent = 1;
+                console.warn("Falling back to index 1 for SKU.");
+            }
+            if (idxQty === -1) {
+                idxQty = 39; // Fallback to old Col AN
+                console.warn("Falling back to index 39 for Quantity.");
+            }
+
+            // 2. Parse Rows
+            // Start from 1 to skip header
             for (let i = 1; i < lines.length; i++) {
-
-                // Let's use a quick parser for performance as this file might be wide
                 const row = parseLineSimple(lines[i]);
-                if (row.length < 40) continue; // Safety check
 
-                const parent = row[1]?.trim();
+                // Ensure row has enough columns for at least the SKU
+                if (row.length <= idxParent) continue;
+
+                const parent = row[idxParent]?.trim();
                 if (!parent) continue;
 
-                const qty = parseFloat(row[39]) || 0;
-                const incoming = parseFloat(row[41]) || 0; // Col AP
+                const qty = idxQty > -1 ? (parseFloat(row[idxQty]) || 0) : 0;
+                const incoming = idxIncoming > -1 ? (parseFloat(row[idxIncoming]) || 0) : 0;
 
                 // Collect Alternates
                 const alts = [];
-                // Columns FI (164) to JL (271)
-                // Ensure row has enough columns
-                const maxCol = Math.min(row.length, 272);
-                for (let c = 164; c < maxCol; c++) {
-                    if (row[c] && row[c].trim() !== '') {
-                        const alt = row[c].trim();
-                        alts.push(alt);
-                        b2bData.skuMap[alt] = parent;
+
+                altIndices.forEach(idx => {
+                    if (idx < row.length && row[idx]) {
+                        const val = row[idx].trim();
+                        if (val) {
+                            alts.push(val);
+                            b2bData.skuMap[val] = parent;
+                        }
                     }
-                }
+                });
 
                 // Map Parent to itself too
                 b2bData.skuMap[parent] = parent;
@@ -1267,14 +1323,23 @@
             // B2B List: Dynamic Headers for SKU, Min, Ignore
             const lines = csvText.split('\n');
             b2bData.list = [];
+            b2bData.ignoredSet = new Set();
 
             if (lines.length < 2) return;
 
             // Header Detection
-            const headerRow = parseLineSimple(lines[0].toLowerCase());
-            let idxSku = headerRow.findIndex(h => h === 'sku');
-            let idxMin = headerRow.findIndex(h => h.includes('min') || h.includes('minimum'));
-            let idxIgnore = headerRow.findIndex(h => h.includes('ignore'));
+            const headers = parseLineSimple(lines[0]);
+            const formattedHeaders = headers.map(h => h.trim().toLowerCase());
+
+            let idxSku = -1;
+            let idxMin = -1;
+            let idxIgnore = -1;
+
+            formattedHeaders.forEach((h, index) => {
+                if (h === 'sku') idxSku = index;
+                else if (h.includes('min') || h.includes('minimum')) idxMin = index;
+                else if (h === 'ignore') idxIgnore = index; // Strict Check "Ignore"
+            });
 
             // Fallbacks
             if (idxSku === -1) idxSku = 0;
@@ -1284,25 +1349,26 @@
 
             for (let i = 1; i < lines.length; i++) {
                 const row = parseLineSimple(lines[i]);
-                if (row.length <= Math.max(idxSku, idxMin)) continue;
 
-                const sku = row[idxSku]?.trim();
-                if (!sku) continue;
-
-                const min = parseFloat(row[idxMin]) || 0;
-
-                // Ignore if column exists and has any value (not empty/null)
-                let ignore = false;
-                if (idxIgnore !== -1 && row[idxIgnore]) {
-                    const val = row[idxIgnore].trim().toLowerCase();
-                    if (val && val !== 'false' && val !== '0' && val !== 'no') {
-                        ignore = true;
+                // Process SKU and Min
+                if (row.length > Math.max(idxSku, idxMin)) {
+                    const sku = row[idxSku]?.trim();
+                    if (sku) {
+                        const min = parseFloat(row[idxMin]) || 0;
+                        b2bData.list.push({ sku, min });
                     }
                 }
 
-                b2bData.list.push({ sku, min, ignore });
+                // Process Ignore List (Independent)
+                if (idxIgnore !== -1 && idxIgnore < row.length) {
+                    const val = row[idxIgnore]?.trim();
+                    if (val) {
+                        // Add to blacklist
+                        b2bData.ignoredSet.add(val.toLowerCase());
+                    }
+                }
             }
-            console.log(`Loaded ${b2bData.list.length} B2B SKUs`);
+            console.log(`Loaded ${b2bData.list.length} B2B SKUs, ${b2bData.ignoredSet.size} Ignored SKUs`);
         }
 
         async function fetchGoogleSheetData() {
@@ -1401,10 +1467,12 @@
                 const months = parseInt(document.getElementById('forecastMonths').value) || 1;
                 const flaggedList = document.getElementById('flaggedList');
                 const chillingList = document.getElementById('chillingList');
+                const ignoredList = document.getElementById('ignoredList');
                 // ... (init vars) ...
 
                 flaggedList.innerHTML = '';
                 chillingList.innerHTML = '';
+                ignoredList.innerHTML = '';
 
                 // Calculate Daily Sales Velocity for ALL SKUs based on History
                 const now = new Date();
@@ -1425,13 +1493,14 @@
 
                 let flaggedCount = 0;
                 let chillingCount = 0;
+                let ignoredCount = 0;
 
                 b2bData.flaggedItems = []; // Reset for Export
 
                 b2bData.list.forEach(item => {
                     const targetSku = item.sku;
                     const min = item.min;
-                    const isIgnored = item.ignore; // CHECK IGNORE
+                    const isIgnored = b2bData.ignoredSet.has(targetSku.toLowerCase()); // CHECK BLACKLIST SET
 
                     // 1. Resolve Parent Group
                     // ...
@@ -1540,34 +1609,32 @@
                     `;
                     div.innerHTML = html;
 
-                    if (belowMin || willRunOut) {
-                        // Skip if Ignored
-                        if (isIgnored) {
-                            chillingList.appendChild(div);
-                            chillingCount++;
-                        } else {
-                            flaggedList.appendChild(div);
-                            flaggedCount++;
-                            // Add to Export List
-                            b2bData.flaggedItems.push({
-                                sku: targetSku,
-                                parent: parentSku,
-                                min: min,
-                                stock: totalStock,
-                                incoming: incomingStock,
-                                rate3Mo: rate3Mo,
-                                rate6Mo: rate6Mo,
-                                issues: issues.join('; ')
-                            });
-                        }
+                    if (isIgnored) {
+                        ignoredList.appendChild(div);
+                        ignoredCount++;
+                    } else if (belowMin || willRunOut) {
+                        flaggedList.appendChild(div);
+                        flaggedCount++;
+                        // Add to Export List
+                        b2bData.flaggedItems.push({
+                            sku: targetSku,
+                            parent: parentSku,
+                            min: min,
+                            stock: totalStock,
+                            incoming: incomingStock,
+                            rate3Mo: rate3Mo,
+                            rate6Mo: rate6Mo,
+                            issues: issues.join('; ')
+                        });
                     } else {
                         chillingList.appendChild(div);
                         chillingCount++;
                     }
                 });
 
-                document.getElementById('b2b-summary-text').innerText = `${flaggedCount} Flagged, ${chillingCount} OK`;
+                document.getElementById('b2b-summary-text').innerText = `${flaggedCount} Flagged, ${ignoredCount} Ignored, ${chillingCount} OK`;
                 document.getElementById('flaggedCount').innerText = `(${flaggedCount})`;
+                document.getElementById('ignoredCount').innerText = `(${ignoredCount})`;
                 document.getElementById('b2bContent').classList.add('open'); // Auto open if running analysis
             } catch (err) {
                 console.error("B2B Analysis Error:", err);
