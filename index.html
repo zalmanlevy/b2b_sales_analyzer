@@ -706,6 +706,11 @@
             background: #f8fafc;
         }
 
+        .b2b-overstock {
+            border-top: 4px solid #f59e0b;
+            background: #fffbeb;
+        }
+
         .b2b-list {
             max-height: 300px;
             overflow-y: auto;
@@ -820,6 +825,19 @@
                             time)</span>
                     </div>
 
+                    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                        <label>Overstock Threshold:</label>
+                        <select id="overstockMonths" onchange="runB2BAnalysis()"
+                            style="padding: 5px; border-radius: 4px; border: 1px solid var(--border);">
+                            <option value="6">6 Months</option>
+                            <option value="9">9 Months</option>
+                            <option value="12" selected>12 Months</option>
+                            <option value="18">18 Months</option>
+                            <option value="24">24 Months</option>
+                        </select>
+                        <span style="font-size: 0.8rem; color: #64748b;">(Flag if stock lasts longer than this)</span>
+                    </div>
+
                     <div class="b2b-grid">
                         <!-- Flagged SKUs -->
                         <div class="b2b-sub-section b2b-flagged">
@@ -848,9 +866,30 @@
                             </div>
                         </div>
 
+                        <!-- Overstocked SKUs -->
+                        <div class="b2b-sub-section b2b-overstock">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4 style="margin: 0; color: #d97706;">⚠️ Overstocked SKUs <span id="overstockCount"
+                                        style="color: #64748b; font-size: 0.8em; font-weight: normal;"></span></h4>
+                                <button onclick="exportOverstockCSV()" class="btn-sm"
+                                    style="background-color: #fff; border: 1px solid #ccc; color: #333;">Export
+                                    CSV</button>
+                            </div>
+                            <div class="b2b-list" id="overstockList">
+                                <!-- Items go here -->
+                            </div>
+                        </div>
+
                         <!-- Chilling SKUs -->
                         <div class="b2b-sub-section b2b-chilling">
-                            <h4 style="margin-top: 0; color: #15803d;">✅ Chilling SKUs (Sufficient Stock)</h4>
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4 style="margin: 0; color: #15803d;">✅ Chilling SKUs (Sufficient Stock)</h4>
+                                <button onclick="exportChillingCSV()" class="btn-sm"
+                                    style="background-color: #fff; border: 1px solid #ccc; color: #333;">Export
+                                    CSV</button>
+                            </div>
                             <div class="b2b-list" id="chillingList">
                                 <!-- Items go here -->
                             </div>
@@ -1465,12 +1504,15 @@
         function runB2BAnalysis() {
             try {
                 const months = parseInt(document.getElementById('forecastMonths').value) || 1;
+                const overstockMonths = parseInt(document.getElementById('overstockMonths').value) || 12;
                 const flaggedList = document.getElementById('flaggedList');
+                const overstockList = document.getElementById('overstockList');
                 const chillingList = document.getElementById('chillingList');
                 const ignoredList = document.getElementById('ignoredList');
                 // ... (init vars) ...
 
                 flaggedList.innerHTML = '';
+                overstockList.innerHTML = '';
                 chillingList.innerHTML = '';
                 ignoredList.innerHTML = '';
 
@@ -1492,10 +1534,13 @@
                 });
 
                 let flaggedCount = 0;
+                let overstockCount = 0;
                 let chillingCount = 0;
                 let ignoredCount = 0;
 
                 b2bData.flaggedItems = []; // Reset for Export
+                b2bData.overstockItems = []; // Reset for Export
+                b2bData.chillingItems = []; // Reset for Export
 
                 b2bData.list.forEach(item => {
                     const targetSku = item.sku;
@@ -1567,6 +1612,7 @@
                     const monthsLeft = daysLeft / 30;
 
                     const willRunOut = monthsLeft < months;
+                    const isOverstocked = monthsLeft > overstockMonths;
                     const belowMin = totalStock < min;
 
                     // Render Item
@@ -1577,6 +1623,7 @@
                     let issues = [];
                     if (belowMin) issues.push(`Below Min (${min})`);
                     if (willRunOut) issues.push(`Runs out in ${formatDec(monthsLeft)} mo`);
+                    if (isOverstocked) issues.push(`Overstock (> ${overstockMonths} mo)`);
 
                     const html = `
                         <div style="flex: 1;">
@@ -1626,14 +1673,42 @@
                             rate6Mo: rate6Mo,
                             issues: issues.join('; ')
                         });
+                    } else if (isOverstocked) {
+                        overstockList.appendChild(div);
+                        overstockCount++;
+                        // Add to Overstock Export List
+                        b2bData.overstockItems.push({
+                            sku: targetSku,
+                            parent: parentSku,
+                            min: min,
+                            stock: totalStock,
+                            incoming: incomingStock,
+                            rate3Mo: rate3Mo,
+                            rate6Mo: rate6Mo,
+                            monthsLeft: monthsLeft
+                        });
                     } else {
                         chillingList.appendChild(div);
                         chillingCount++;
+                        // Add to Chilling Export List
+                        b2bData.chillingItems.push({
+                            sku: targetSku,
+                            parent: parentSku,
+                            min: min,
+                            stock: totalStock,
+                            incoming: incomingStock,
+                            rate3Mo: rate3Mo,
+                            rate6Mo: rate6Mo,
+                            issues: 'None'
+                        });
                     }
                 });
 
-                document.getElementById('b2b-summary-text').innerText = `${flaggedCount} Flagged, ${ignoredCount} Ignored, ${chillingCount} OK`;
+
+
+                document.getElementById('b2b-summary-text').innerText = `${flaggedCount} Flagged, ${overstockCount} Overstocked, ${ignoredCount} Ignored, ${chillingCount} OK`;
                 document.getElementById('flaggedCount').innerText = `(${flaggedCount})`;
+                document.getElementById('overstockCount').innerText = `(${overstockCount})`;
                 document.getElementById('ignoredCount').innerText = `(${ignoredCount})`;
                 document.getElementById('b2bContent').classList.add('open'); // Auto open if running analysis
             } catch (err) {
@@ -1686,6 +1761,71 @@
             const link = document.createElement("a");
             link.setAttribute("href", url);
             link.setAttribute("download", `flagged_skus_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportChillingCSV() {
+            if (!b2bData.chillingItems || b2bData.chillingItems.length === 0) {
+                alert("No chilling items to export.");
+                return;
+            }
+
+            const headers = ['SKU', 'Parent SKU', 'Min Stock', 'Total Stock', 'Incoming', '3Mo Rate', '6Mo Rate'];
+            const rows = b2bData.chillingItems.map(i => [
+                `"${i.sku}"`,
+                `"${i.parent}"`,
+                i.min,
+                i.stock,
+                i.incoming,
+                i.rate3Mo.toFixed(2),
+                i.rate6Mo.toFixed(2)
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(r => r.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `chilling_skus_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportOverstockCSV() {
+            if (!b2bData.overstockItems || b2bData.overstockItems.length === 0) {
+                alert("No overstocked items to export.");
+                return;
+            }
+
+            const headers = ['SKU', 'Parent SKU', 'Min Stock', 'Total Stock', 'Incoming', '3Mo Rate', '6Mo Rate', 'Months Supply'];
+            const rows = b2bData.overstockItems.map(i => [
+                `"${i.sku}"`,
+                `"${i.parent}"`,
+                i.min,
+                i.stock,
+                i.incoming,
+                i.rate3Mo.toFixed(2),
+                i.rate6Mo.toFixed(2),
+                i.monthsLeft > 999 ? "999+" : i.monthsLeft.toFixed(1)
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(r => r.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `overstock_skus_${new Date().toISOString().slice(0, 10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
