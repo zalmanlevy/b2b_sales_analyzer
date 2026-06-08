@@ -277,6 +277,32 @@
             border-color: var(--primary);
         }
 
+        .quick-filter-row {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 5px;
+        }
+
+        .btn-quick-filter {
+            background: #fff7ed;
+            color: #9a3412;
+            border: 1px solid #fdba74;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-quick-filter:hover,
+        .btn-quick-filter.active {
+            background: #ea580c;
+            border-color: #ea580c;
+            color: white;
+        }
+
         /* TABS */
         .tabs {
             display: flex;
@@ -1004,6 +1030,11 @@
                             </div>
                             <div class="dropdown-list"></div>
                         </div>
+                    </div>
+
+                    <div class="quick-filter-row">
+                        <button id="pendingPaymentQuickFilter" class="btn-quick-filter"
+                            onclick="applyPendingPaymentLast30()">Only Pending Payment - Last 30 Days</button>
                     </div>
                 </div>
             </div>
@@ -2073,6 +2104,67 @@
             runAnalysis();
         }
 
+        function findPendingPaymentStatus() {
+            const normalizedExact = optionsList.status.find(status => status.trim().toLowerCase() === 'pending payment');
+            if (normalizedExact) return normalizedExact;
+
+            return optionsList.status.find(status => {
+                const clean = status.trim().toLowerCase();
+                return clean.includes('pending') && clean.includes('payment');
+            });
+        }
+
+        function getLast30DateRange() {
+            const end = new Date();
+            const start = new Date();
+            start.setDate(end.getDate() - 30);
+            return {
+                start: start.toISOString().split('T')[0],
+                end: end.toISOString().split('T')[0]
+            };
+        }
+
+        function updatePendingPaymentQuickFilterState() {
+            const btn = document.getElementById('pendingPaymentQuickFilter');
+            if (!btn) return;
+
+            const pendingStatus = findPendingPaymentStatus();
+            const last30 = getLast30DateRange();
+            const isActive = pendingStatus &&
+                modes.status === 'include' &&
+                selections.status.size === 1 &&
+                selections.status.has(pendingStatus) &&
+                document.getElementById('dateStart').value === last30.start &&
+                document.getElementById('dateEnd').value === last30.end;
+
+            btn.classList.toggle('active', Boolean(isActive));
+        }
+
+        function applyPendingPaymentLast30() {
+            const pendingStatus = findPendingPaymentStatus();
+            if (!pendingStatus) {
+                alert('Pending Payment status was not found in the uploaded order history.');
+                return;
+            }
+
+            removeDateHighlight();
+
+            const last30 = getLast30DateRange();
+            document.getElementById('dateStart').value = last30.start;
+            document.getElementById('dateEnd').value = last30.end;
+
+            modes.status = 'include';
+            document.querySelector('input[name="statusMode"][value="include"]').checked = true;
+            document.getElementById('statusWrapper').classList.remove('exclude-active');
+
+            selections.status.clear();
+            selections.status.add(pendingStatus);
+
+            const wrapper = document.getElementById('statusWrapper');
+            renderTags(wrapper.querySelector('.multi-input-container'), wrapper.querySelector('.search-input'), 'status');
+            runAnalysis();
+        }
+
         // --- Analysis Core ---
         function runAnalysis() {
             currentRenderLimit = 500;
@@ -2147,6 +2239,7 @@
             renderTable();
             renderMonthlyCalendar();
             renderBreakdown();
+            updatePendingPaymentQuickFilterState();
         }
 
         // --- Reorder Logic ---
