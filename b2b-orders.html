@@ -230,9 +230,51 @@
         }
 
         details.breakdown .breakdown-body {
-            padding: 0 15px 10px;
-            max-height: 320px;
+            padding: 10px 15px;
+            max-height: 420px;
             overflow-y: auto;
+        }
+
+        .date-range {
+            font-size: 0.9rem;
+            color: #475569;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .date-range:empty {
+            display: none;
+        }
+
+        .stat-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            flex: 1;
+            min-width: 140px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-top: 2px;
         }
 
         tbody tr:hover {
@@ -354,13 +396,29 @@
             </div>
 
             <details class="breakdown" id="skuBreakdown" open>
-                <summary>📊 Count by SKU (<span id="skuBreakdownCount">0</span> SKUs)</summary>
+                <summary>📊 Summary</summary>
                 <div class="breakdown-body">
+                    <div class="date-range" id="summaryDateRange"></div>
+                    <div class="stat-row">
+                        <div class="stat-box">
+                            <div class="stat-label">Total Dollar Amount</div>
+                            <div class="stat-value" id="statTotalAmount">$0.00</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Total Units</div>
+                            <div class="stat-value" id="statTotalUnits">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Distinct SKUs</div>
+                            <div class="stat-value" id="statTotalSkus">0</div>
+                        </div>
+                    </div>
                     <table>
                         <thead>
                             <tr>
                                 <th class="no-sort">SKU</th>
-                                <th class="no-sort">Order Lines</th>
+                                <th class="no-sort">Units</th>
+                                <th class="no-sort">Order Amount</th>
                             </tr>
                         </thead>
                         <tbody id="skuBreakdownBody"></tbody>
@@ -374,6 +432,8 @@
                         <tr>
                             <th data-col="orderId" onclick="sortBy('orderId')">Order ID</th>
                             <th data-col="sku" onclick="sortBy('sku')">SKU</th>
+                            <th data-col="qty" onclick="sortBy('qty')">QTY</th>
+                            <th data-col="total" onclick="sortBy('total')">Order Total</th>
                             <th data-col="date" onclick="sortBy('date')">Date</th>
                             <th data-col="name" onclick="sortBy('name')">Customer</th>
                             <th data-col="company" onclick="sortBy('company')">Company</th>
@@ -506,6 +566,8 @@
                 const idxOrderId = findIdx(sHeaders, 'order id', 0);    // Col A
                 const idxDate = findIdx(sHeaders, 'order date', 3);     // Col D
                 const idxSSku = findIdx(sHeaders, 'item sku', 10);      // Col K
+                const idxQty = findIdx(sHeaders, 'quantity', 22);      // Col W
+                const idxPrice = findIdx(sHeaders, 'unit price', 23);   // Col X
                 const idxFirst = findIdx(sHeaders, 'first name', 27);   // Col AB
                 const idxLast = findIdx(sHeaders, 'last name', 28);     // Col AC
                 const idxCompany = findIdx(sHeaders, 'company', 29);    // Col AD
@@ -525,7 +587,10 @@
                     const firstName = (r[idxFirst] || '').trim();
                     const lastName = (r[idxLast] || '').trim();
                     const company = (r[idxCompany] || '').trim();
-                    results.push({ orderId, sku, date, firstName, lastName, company });
+                    const qty = parseNumber(r[idxQty]);              // Col W
+                    const unitPrice = parseNumber(r[idxPrice]);      // Col X ($ stripped)
+                    const total = qty * unitPrice;                   // Order total = W x X
+                    results.push({ orderId, sku, date, firstName, lastName, company, qty, unitPrice, total });
                 }
 
                 allResults = results;
@@ -562,6 +627,18 @@
             return isNaN(t) ? 0 : t;
         }
 
+        // Parse a numeric cell, stripping currency symbols / commas (e.g. "$129.99").
+        function parseNumber(value) {
+            const n = parseFloat(String(value == null ? '' : value).replace(/[^0-9.\-]/g, ''));
+            return isNaN(n) ? 0 : n;
+        }
+
+        function formatMoney(n) {
+            return '$' + (Number(n) || 0).toLocaleString('en-US', {
+                minimumFractionDigits: 2, maximumFractionDigits: 2
+            });
+        }
+
         function escapeHtml(s) {
             return String(s).replace(/[&<>"']/g, c => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -594,6 +671,8 @@
                 let cmp;
                 if (col === 'orderId') cmp = (parseInt(a.orderId, 10) - parseInt(b.orderId, 10));
                 else if (col === 'date') cmp = (parseDateValue(a.date) - parseDateValue(b.date));
+                else if (col === 'qty') cmp = a.qty - b.qty;
+                else if (col === 'total') cmp = a.total - b.total;
                 else if (col === 'company') cmp = a.company.localeCompare(b.company);
                 else if (col === 'name') cmp = (a.lastName || a.firstName).localeCompare(b.lastName || b.firstName);
                 else cmp = a.sku.localeCompare(b.sku);
@@ -621,13 +700,15 @@
                 <tr>
                     <td class="mono">${escapeHtml(r.orderId)}</td>
                     <td>${escapeHtml(r.sku)}</td>
+                    <td class="mono">${r.qty}</td>
+                    <td class="mono">${formatMoney(r.total)}</td>
                     <td title="${escapeHtml(r.date)}">${escapeHtml(formatDate(r.date))}</td>
                     <td>${escapeHtml(name) || '<span style="color:#cbd5e1">—</span>'}</td>
                     <td>${escapeHtml(r.company) || '<span style="color:#cbd5e1">—</span>'}</td>
                 </tr>`;
             }).join('');
 
-            renderSkuBreakdown(rows);
+            renderSummary(rows);
 
             const hasRows = rows.length > 0;
             table.classList.toggle('hidden', !hasRows);
@@ -642,24 +723,52 @@
                 (rows.length !== allResults.length ? ` &middot; showing ${rows.length} (filtered)` : '');
         }
 
-        // Tally how many matched order lines used each SKU (highest first).
-        function renderSkuBreakdown(rows) {
-            const counts = {};
-            rows.forEach(r => { counts[r.sku] = (counts[r.sku] || 0) + 1; });
-            const entries = Object.entries(counts)
-                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-            document.getElementById('skuBreakdownCount').innerText = entries.length;
-            document.getElementById('skuBreakdownBody').innerHTML = entries.map(([sku, c]) =>
-                `<tr><td>${escapeHtml(sku)}</td><td class="mono">${c}</td></tr>`).join('')
-                || '<tr><td colspan="2" style="color:#94a3b8">No matches</td></tr>';
+        // Summary: total $ and units overall, plus units + $ amount per SKU
+        // (highest dollar amount first).
+        function renderSummary(rows) {
+            const bySku = {};
+            let totalUnits = 0, totalAmount = 0;
+            rows.forEach(r => {
+                if (!bySku[r.sku]) bySku[r.sku] = { units: 0, amount: 0 };
+                bySku[r.sku].units += r.qty;
+                bySku[r.sku].amount += r.total;
+                totalUnits += r.qty;
+                totalAmount += r.total;
+            });
+            const entries = Object.entries(bySku)
+                .sort((a, b) => b[1].amount - a[1].amount || a[0].localeCompare(b[0]));
+
+            // Date range covered by the rows in the summary
+            let minT = Infinity, maxT = -Infinity, minRaw = '', maxRaw = '';
+            rows.forEach(r => {
+                const t = parseDateValue(r.date);
+                if (!t) return;
+                if (t < minT) { minT = t; minRaw = r.date; }
+                if (t > maxT) { maxT = t; maxRaw = r.date; }
+            });
+            const rangeEl = document.getElementById('summaryDateRange');
+            if (rows.length && minRaw) {
+                const a = formatDate(minRaw), b = formatDate(maxRaw);
+                rangeEl.innerText = '📅 Date range: ' + (a === b ? a : `${a} – ${b}`);
+            } else {
+                rangeEl.innerText = '';
+            }
+
+            document.getElementById('statTotalAmount').innerText = formatMoney(totalAmount);
+            document.getElementById('statTotalUnits').innerText = totalUnits.toLocaleString('en-US');
+            document.getElementById('statTotalSkus').innerText = entries.length;
+
+            document.getElementById('skuBreakdownBody').innerHTML = entries.map(([sku, v]) =>
+                `<tr><td>${escapeHtml(sku)}</td><td class="mono">${v.units}</td><td class="mono">${formatMoney(v.amount)}</td></tr>`
+            ).join('') || '<tr><td colspan="3" style="color:#94a3b8">No matches</td></tr>';
         }
 
         function exportCSV() {
             const rows = getFilteredSorted();
             const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
-            const lines = [['Order ID', 'SKU', 'Date', 'First Name', 'Last Name', 'Company'].map(esc).join(',')];
+            const lines = [['Order ID', 'SKU', 'QTY', 'Unit Price', 'Order Total', 'Date', 'First Name', 'Last Name', 'Company'].map(esc).join(',')];
             rows.forEach(r => lines.push(
-                [r.orderId, r.sku, formatDate(r.date), r.firstName, r.lastName, r.company].map(esc).join(',')));
+                [r.orderId, r.sku, r.qty, r.unitPrice.toFixed(2), r.total.toFixed(2), formatDate(r.date), r.firstName, r.lastName, r.company].map(esc).join(',')));
             const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
