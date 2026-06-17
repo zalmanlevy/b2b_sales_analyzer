@@ -198,6 +198,43 @@
             opacity: 1;
         }
 
+        th.no-sort {
+            cursor: default;
+        }
+
+        th.no-sort:hover {
+            background: #f1f5f9;
+        }
+
+        th.no-sort::after {
+            content: '';
+        }
+
+        details.breakdown {
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        details.breakdown summary {
+            cursor: pointer;
+            padding: 12px 15px;
+            background: #f1f5f9;
+            font-weight: 600;
+            user-select: none;
+        }
+
+        details.breakdown summary:hover {
+            background: #e2e8f0;
+        }
+
+        details.breakdown .breakdown-body {
+            padding: 0 15px 10px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
         tbody tr:hover {
             background: #f8fafc;
         }
@@ -315,6 +352,22 @@
                     <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
                 </div>
             </div>
+
+            <details class="breakdown" id="skuBreakdown" open>
+                <summary>📊 Count by SKU (<span id="skuBreakdownCount">0</span> SKUs)</summary>
+                <div class="breakdown-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="no-sort">SKU</th>
+                                <th class="no-sort">Order Lines</th>
+                            </tr>
+                        </thead>
+                        <tbody id="skuBreakdownBody"></tbody>
+                    </table>
+                </div>
+            </details>
+
             <div class="table-container">
                 <table id="resultsTable">
                     <thead>
@@ -491,11 +544,17 @@
             }
         }
 
-        // Show only the date portion (drop the time) for the Date column.
-        function dateOnly(value) {
+        // Format the date as MM/DD/YYYY (e.g. "6/1/2026 12:01 PM" -> "06/01/2026").
+        function formatDate(value) {
             const s = (value || '').trim();
-            const sp = s.indexOf(' ');
-            return sp > 0 ? s.slice(0, sp) : s;
+            if (!s) return '';
+            const datePart = s.split(' ')[0];
+            const m = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+            if (!m) return datePart;
+            const mm = m[1].padStart(2, '0');
+            const dd = m[2].padStart(2, '0');
+            const yyyy = m[3].length === 2 ? '20' + m[3] : m[3];
+            return `${mm}/${dd}/${yyyy}`;
         }
 
         function parseDateValue(value) {
@@ -562,11 +621,13 @@
                 <tr>
                     <td class="mono">${escapeHtml(r.orderId)}</td>
                     <td>${escapeHtml(r.sku)}</td>
-                    <td title="${escapeHtml(r.date)}">${escapeHtml(dateOnly(r.date))}</td>
+                    <td title="${escapeHtml(r.date)}">${escapeHtml(formatDate(r.date))}</td>
                     <td>${escapeHtml(name) || '<span style="color:#cbd5e1">—</span>'}</td>
                     <td>${escapeHtml(r.company) || '<span style="color:#cbd5e1">—</span>'}</td>
                 </tr>`;
             }).join('');
+
+            renderSkuBreakdown(rows);
 
             const hasRows = rows.length > 0;
             table.classList.toggle('hidden', !hasRows);
@@ -581,12 +642,24 @@
                 (rows.length !== allResults.length ? ` &middot; showing ${rows.length} (filtered)` : '');
         }
 
+        // Tally how many matched order lines used each SKU (highest first).
+        function renderSkuBreakdown(rows) {
+            const counts = {};
+            rows.forEach(r => { counts[r.sku] = (counts[r.sku] || 0) + 1; });
+            const entries = Object.entries(counts)
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+            document.getElementById('skuBreakdownCount').innerText = entries.length;
+            document.getElementById('skuBreakdownBody').innerHTML = entries.map(([sku, c]) =>
+                `<tr><td>${escapeHtml(sku)}</td><td class="mono">${c}</td></tr>`).join('')
+                || '<tr><td colspan="2" style="color:#94a3b8">No matches</td></tr>';
+        }
+
         function exportCSV() {
             const rows = getFilteredSorted();
             const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
             const lines = [['Order ID', 'SKU', 'Date', 'First Name', 'Last Name', 'Company'].map(esc).join(',')];
             rows.forEach(r => lines.push(
-                [r.orderId, r.sku, r.date, r.firstName, r.lastName, r.company].map(esc).join(',')));
+                [r.orderId, r.sku, formatDate(r.date), r.firstName, r.lastName, r.company].map(esc).join(',')));
             const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
