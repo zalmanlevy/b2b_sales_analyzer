@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B2B Order Finder</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏷️</text></svg>">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin-top: 0;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Multi-File Upload Styles (matches main page) */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .upload-card {
+            border: 2px dashed #cbd5e1;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 150px;
+        }
+
+        .upload-card:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-card.uploaded {
+            border-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #64748b;
+        }
+
+        .uploaded .upload-icon {
+            color: var(--success);
+        }
+
+        .upload-instructions {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .upload-instructions .step {
+            white-space: nowrap;
+        }
+
+        .file-status {
+            font-size: 0.85rem;
+            margin-top: 8px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        /* Buttons */
+        .btn-load-more {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .btn-load-more:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-sm {
+            background: #fff;
+            border: 1px solid #ccc;
+            color: #333;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .btn-sm:hover {
+            background: #f1f5f9;
+        }
+
+        /* Table (matches main page) */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #f1f5f9;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th:hover {
+            background: #e2e8f0;
+        }
+
+        th::after {
+            content: ' ↕';
+            opacity: 0.3;
+            font-size: 0.8em;
+        }
+
+        th.asc::after {
+            content: ' ⬆';
+            opacity: 1;
+        }
+
+        th.desc::after {
+            content: ' ⬇';
+            opacity: 1;
+        }
+
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .mono {
+            font-variant-numeric: tabular-nums;
+            font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
+        }
+
+        .summary-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .summary-text {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .summary-text strong {
+            color: var(--text);
+        }
+
+        #searchBox {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            width: 240px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: var(--danger);
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #64748b;
+            padding: 30px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="index.html" class="back-link">← Back to Inventory &amp; Sales Analyzer</a>
+        <h1>🏷️ B2B Order Finder</h1>
+        <p style="margin-top: -5px; color: #64748b;">
+            Find Encased store orders that used your B2B SKUs. Upload the two SkuVault exports below.
+        </p>
+
+        <div class="card" id="uploadSection">
+            <h2>📂 Import Data Files</h2>
+            <p style="margin-bottom: 20px; color: #64748b;">Upload both files to begin.</p>
+
+            <div class="upload-grid">
+                <!-- 1. Product Details -->
+                <div class="upload-card" id="card-product" onclick="document.getElementById('input-product').click()">
+                    <div class="upload-icon">📦</div>
+                    <strong>Product Details</strong>
+                    <div class="upload-instructions">
+                        <span class="step">SkuVault → Admin → Exporting →</span>
+                        <span class="step">open the <b>Product Details</b> export →</span>
+                        <span class="step">Select All Items → Generate → Download</span>
+                    </div>
+                    <div class="file-status" id="status-product">Not Uploaded</div>
+                    <input type="file" id="input-product" accept=".csv" style="display: none"
+                        onchange="handleFileSelect('product', event)">
+                </div>
+
+                <!-- 2. Sale Details -->
+                <div class="upload-card" id="card-sale" onclick="document.getElementById('input-sale').click()">
+                    <div class="upload-icon">🧾</div>
+                    <strong>Sale Details</strong>
+                    <div class="upload-instructions">
+                        <span class="step">SkuVault → Admin → Exporting →</span>
+                        <span class="step">open the <b>Sale Details</b> export →</span>
+                        <span class="step">set the right month/dates →</span>
+                        <span class="step">Generate → Download</span>
+                    </div>
+                    <div class="file-status" id="status-sale">Not Uploaded</div>
+                    <input type="file" id="input-sale" accept=".csv" style="display: none"
+                        onchange="handleFileSelect('sale', event)">
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="processBtn" class="btn-load-more" style="opacity: 0.5; cursor: not-allowed;" disabled
+                    onclick="processFiles()">
+                    🔎 Find Orders
+                </button>
+            </div>
+            <div id="errorMsg" class="error" style="text-align: center;"></div>
+        </div>
+
+        <div class="card hidden" id="resultsSection">
+            <div class="summary-bar">
+                <div class="summary-text" id="summaryText"></div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="searchBox" placeholder="Search Order ID, SKU, name, company..."
+                        oninput="renderResults()">
+                    <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th data-col="orderId" onclick="sortBy('orderId')">Order ID</th>
+                            <th data-col="sku" onclick="sortBy('sku')">SKU</th>
+                            <th data-col="date" onclick="sortBy('date')">Date</th>
+                            <th data-col="name" onclick="sortBy('name')">Customer</th>
+                            <th data-col="company" onclick="sortBy('company')">Company</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+            <div class="empty-state hidden" id="emptyState">No matching orders found.</div>
+        </div>
+    </div>
+
+    <script>
+        // --- File handling state ---
+        const uploadedFiles = { product: null, sale: null };
+        let allResults = [];           // [{orderId, sku, date}]
+        let sortState = { col: 'date', dir: 'desc' };
+
+        function handleFileSelect(type, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            uploadedFiles[type] = file;
+            const card = document.getElementById('card-' + type);
+            const status = document.getElementById('status-' + type);
+            card.classList.add('uploaded');
+            status.innerText = '✓ ' + file.name;
+            checkReady();
+        }
+
+        function checkReady() {
+            const btn = document.getElementById('processBtn');
+            const ready = uploadedFiles.product && uploadedFiles.sale;
+            btn.disabled = !ready;
+            btn.style.opacity = ready ? '1' : '0.5';
+            btn.style.cursor = ready ? 'pointer' : 'not-allowed';
+        }
+
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('Could not read ' + file.name));
+                reader.readAsText(file);
+            });
+        }
+
+        // --- Robust CSV parser: handles BOM, quotes, "" escapes, embedded
+        //     commas/newlines, and \r\n line endings. Returns array of rows. ---
+        function parseCSV(text) {
+            text = text.replace(/^﻿/, '');
+            const rows = [];
+            let row = [];
+            let field = '';
+            let inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQuotes) {
+                    if (c === '"') {
+                        if (text[i + 1] === '"') { field += '"'; i++; }
+                        else { inQuotes = false; }
+                    } else {
+                        field += c;
+                    }
+                } else {
+                    if (c === '"') {
+                        inQuotes = true;
+                    } else if (c === ',') {
+                        row.push(field); field = '';
+                    } else if (c === '\n') {
+                        row.push(field); rows.push(row); row = []; field = '';
+                    } else if (c === '\r') {
+                        if (text[i + 1] !== '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+                    } else {
+                        field += c;
+                    }
+                }
+            }
+            if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+            return rows;
+        }
+
+        // Find a column by exact header name (case-insensitive); fall back to a
+        // fixed column index if the header isn't present.
+        function findIdx(headers, name, fallbackIndex) {
+            const i = headers.findIndex(h => (h || '').trim().toLowerCase() === name);
+            return i === -1 ? fallbackIndex : i;
+        }
+
+        async function processFiles() {
+            const btn = document.getElementById('processBtn');
+            const errEl = document.getElementById('errorMsg');
+            errEl.innerText = '';
+            btn.innerText = '⏳ Processing...';
+            btn.disabled = true;
+
+            try {
+                const [productText, saleText] = await Promise.all([
+                    readFile(uploadedFiles.product),
+                    readFile(uploadedFiles.sale)
+                ]);
+
+                // --- 1. Build the set of our B2B SKUs from Product Details ---
+                // SKU = column B, Statuses = column AH. An item is ours if one of
+                // its (semicolon-separated) statuses is exactly "B2B" or "B2B-A".
+                const pRows = parseCSV(productText);
+                if (pRows.length < 2) throw new Error('Product Details file looks empty.');
+                const pHeaders = pRows[0];
+                const idxPSku = findIdx(pHeaders, 'sku', 1);          // Col B
+                const idxStatus = findIdx(pHeaders, 'statuses', 33);  // Col AH
+
+                const b2bSkus = new Set();
+                for (let i = 1; i < pRows.length; i++) {
+                    const r = pRows[i];
+                    if (r.length <= Math.max(idxPSku, idxStatus)) continue;
+                    const sku = (r[idxPSku] || '').trim();
+                    if (!sku) continue;
+                    const statuses = (r[idxStatus] || '').split(';').map(s => s.trim().toUpperCase());
+                    if (statuses.includes('B2B') || statuses.includes('B2B-A')) {
+                        b2bSkus.add(sku.toUpperCase());
+                    }
+                }
+
+                // --- 2. Scan Sale Details for Encased store orders using our SKUs ---
+                // Order ID = column A, Order Date = column D, Item SKU = column K.
+                // Keep rows where the Order ID is all digits and 6+ long (Encased
+                // store order numbers) AND the SKU is one of ours.
+                const sRows = parseCSV(saleText);
+                if (sRows.length < 2) throw new Error('Sale Details file looks empty.');
+                const sHeaders = sRows[0];
+                const idxOrderId = findIdx(sHeaders, 'order id', 0);    // Col A
+                const idxDate = findIdx(sHeaders, 'order date', 3);     // Col D
+                const idxSSku = findIdx(sHeaders, 'item sku', 10);      // Col K
+                const idxFirst = findIdx(sHeaders, 'first name', 27);   // Col AB
+                const idxLast = findIdx(sHeaders, 'last name', 28);     // Col AC
+                const idxCompany = findIdx(sHeaders, 'company', 29);    // Col AD
+
+                const results = [];
+                let scanned = 0;
+                const maxIdx = Math.max(idxOrderId, idxDate, idxSSku);
+                for (let i = 1; i < sRows.length; i++) {
+                    const r = sRows[i];
+                    if (r.length <= maxIdx) continue;
+                    scanned++;
+                    const orderId = (r[idxOrderId] || '').trim();
+                    const sku = (r[idxSSku] || '').trim();
+                    const date = (r[idxDate] || '').trim();
+                    if (!/^\d{6,}$/.test(orderId)) continue;
+                    if (!b2bSkus.has(sku.toUpperCase())) continue;
+                    const firstName = (r[idxFirst] || '').trim();
+                    const lastName = (r[idxLast] || '').trim();
+                    const company = (r[idxCompany] || '').trim();
+                    results.push({ orderId, sku, date, firstName, lastName, company });
+                }
+
+                allResults = results;
+                window._stats = { b2bCount: b2bSkus.size, scanned };
+                sortState = { col: 'date', dir: 'desc' };
+                renderResults();
+                document.getElementById('resultsSection').classList.remove('hidden');
+                document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                errEl.innerText = 'Error: ' + err.message;
+                console.error(err);
+            } finally {
+                btn.innerText = '🔎 Find Orders';
+                checkReady();
+            }
+        }
+
+        // Show only the date portion (drop the time) for the Date column.
+        function dateOnly(value) {
+            const s = (value || '').trim();
+            const sp = s.indexOf(' ');
+            return sp > 0 ? s.slice(0, sp) : s;
+        }
+
+        function parseDateValue(value) {
+            const t = Date.parse(value);
+            return isNaN(t) ? 0 : t;
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function sortBy(col) {
+            if (sortState.col === col) {
+                sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.col = col;
+                sortState.dir = col === 'date' ? 'desc' : 'asc';
+            }
+            renderResults();
+        }
+
+        function getFilteredSorted() {
+            const q = document.getElementById('searchBox').value.trim().toLowerCase();
+            let rows = allResults;
+            if (q) {
+                rows = rows.filter(r =>
+                    r.orderId.toLowerCase().includes(q) ||
+                    r.sku.toLowerCase().includes(q) ||
+                    (r.firstName + ' ' + r.lastName).toLowerCase().includes(q) ||
+                    r.company.toLowerCase().includes(q));
+            }
+            const { col, dir } = sortState;
+            const mult = dir === 'asc' ? 1 : -1;
+            rows = rows.slice().sort((a, b) => {
+                let cmp;
+                if (col === 'orderId') cmp = (parseInt(a.orderId, 10) - parseInt(b.orderId, 10));
+                else if (col === 'date') cmp = (parseDateValue(a.date) - parseDateValue(b.date));
+                else if (col === 'company') cmp = a.company.localeCompare(b.company);
+                else if (col === 'name') cmp = (a.lastName || a.firstName).localeCompare(b.lastName || b.firstName);
+                else cmp = a.sku.localeCompare(b.sku);
+                if (cmp === 0) cmp = parseInt(a.orderId, 10) - parseInt(b.orderId, 10);
+                return cmp * mult;
+            });
+            return rows;
+        }
+
+        function renderResults() {
+            const rows = getFilteredSorted();
+            const body = document.getElementById('resultsBody');
+            const empty = document.getElementById('emptyState');
+            const table = document.getElementById('resultsTable');
+
+            // Header sort indicators
+            document.querySelectorAll('#resultsTable th').forEach(th => {
+                th.classList.remove('asc', 'desc');
+                if (th.dataset.col === sortState.col) th.classList.add(sortState.dir);
+            });
+
+            body.innerHTML = rows.map(r => {
+                const name = (r.firstName + ' ' + r.lastName).trim();
+                return `
+                <tr>
+                    <td class="mono">${escapeHtml(r.orderId)}</td>
+                    <td>${escapeHtml(r.sku)}</td>
+                    <td title="${escapeHtml(r.date)}">${escapeHtml(dateOnly(r.date))}</td>
+                    <td>${escapeHtml(name) || '<span style="color:#cbd5e1">—</span>'}</td>
+                    <td>${escapeHtml(r.company) || '<span style="color:#cbd5e1">—</span>'}</td>
+                </tr>`;
+            }).join('');
+
+            const hasRows = rows.length > 0;
+            table.classList.toggle('hidden', !hasRows);
+            empty.classList.toggle('hidden', hasRows);
+
+            const distinctOrders = new Set(allResults.map(r => r.orderId)).size;
+            const stats = window._stats || { b2bCount: 0, scanned: 0 };
+            document.getElementById('summaryText').innerHTML =
+                `<strong>${allResults.length}</strong> matching order line${allResults.length === 1 ? '' : 's'} ` +
+                `across <strong>${distinctOrders}</strong> order${distinctOrders === 1 ? '' : 's'} ` +
+                `&middot; ${stats.b2bCount} B2B SKUs loaded &middot; ${stats.scanned} sale rows scanned` +
+                (rows.length !== allResults.length ? ` &middot; showing ${rows.length} (filtered)` : '');
+        }
+
+        function exportCSV() {
+            const rows = getFilteredSorted();
+            const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
+            const lines = [['Order ID', 'SKU', 'Date', 'First Name', 'Last Name', 'Company'].map(esc).join(',')];
+            rows.forEach(r => lines.push(
+                [r.orderId, r.sku, r.date, r.firstName, r.lastName, r.company].map(esc).join(',')));
+            const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'b2b-orders.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+</html>
